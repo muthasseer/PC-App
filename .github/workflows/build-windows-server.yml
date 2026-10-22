@@ -1,0 +1,387 @@
+name: Build Windows Central Server (PC application + Web dashboard)
+
+# Produces the Windows setup (.exe) and a portable folder of the Central Server desktop application: server manager window, notification-area icon, admin web dashboard and mobile API.
+# Run it from the Actions tab (Run workflow). It works whether the project files are committed directly or
+# the project ZIP was uploaded to the repository as it is.
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Also publish a GitHub Release v<version> with the files attached"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-central-server-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Run automated tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Find the project files
+        id: project
+        shell: bash
+        run: |
+          python3 - Web/app.py windows/rti_server_launcher.py <<'PY'
+          """Locate the AB Securitas project root inside a GitHub Actions workspace.
+
+          Handles both layouts people use on GitHub:
+            1. the project files committed directly (Android/, Web/, ClientPC/, ... at the repository root or in one sub-folder);
+            2. a source ZIP committed to the repository (the newest ZIP that contains the project is extracted).
+
+          Usage: python find_project_root.py <marker-file> [<marker-file> ...]
+          Prints the project root (POSIX style) and, when running in Actions, writes `root=<path>` to $GITHUB_OUTPUT.
+
+          NOTE: the same logic is embedded inline in the workflows (a workflow must be able to run before any other file
+          of the repository is available, e.g. when only a ZIP was uploaded). Keep both copies in sync.
+          """
+          import os
+          import re
+          import shutil
+          import sys
+          import tempfile
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          SKIP_DIRS = {".git", ".gradle", ".venv", "build", "node_modules", "__pycache__"}
+
+
+          def find_roots(base, markers):
+              for current, dirs, files in os.walk(base):
+                  dirs[:] = [name for name in dirs if name not in SKIP_DIRS]
+                  root = Path(current)
+                  if all((root / marker).is_file() for marker in markers):
+                      yield root.resolve()
+                      dirs[:] = []  # do not descend into a project we already found
+
+
+          def version_key(path):
+              numbers = [int(value) for value in re.findall(r"\d+", path.name)]
+              return (numbers, path.name.lower())
+
+
+          def extract_safely(archive, destination):
+              for info in archive.infolist():
+                  member = PurePosixPath(info.filename.replace("\\", "/"))
+                  if member.is_absolute() or ".." in member.parts:
+                      raise ValueError(f"Unsafe ZIP member path: {info.filename}")
+                  target = (destination / Path(*member.parts)).resolve()
+                  if destination != target and destination not in target.parents:
+                      raise ValueError(f"Unsafe ZIP member path: {info.filename}")
+                  if info.is_dir():
+                      target.mkdir(parents=True, exist_ok=True)
+                  else:
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      with archive.open(info) as source, target.open("wb") as output:
+                          shutil.copyfileobj(source, output)
+
+
+          def main(markers):
+              workspace = Path(os.environ.get("GITHUB_WORKSPACE", ".")).resolve()
+              root = next(find_roots(workspace, markers), None)
+              if root is None:
+                  archives = sorted((p for p in workspace.rglob("*.zip") if ".git" not in p.parts), key=version_key, reverse=True)
+                  for archive_path in archives:
+                      try:
+                          with zipfile.ZipFile(archive_path) as archive:
+                              names = {name.replace("\\", "/") for name in archive.namelist()}
+                              if not any(name.endswith(markers[0]) for name in names):
+                                  continue
+                              destination = Path(tempfile.mkdtemp(prefix="ab-securitas-source-", dir=workspace)).resolve()
+                              extract_safely(archive, destination)
+                          root = next(find_roots(destination, markers), None)
+                          if root is not None:
+                              print(f"Project files extracted from {archive_path}", file=sys.stderr)
+                              break
+                      except (OSError, zipfile.BadZipFile, ValueError) as error:
+                          print(f"Skipping {archive_path}: {error}", file=sys.stderr)
+              if root is None:
+                  print("Could not find the AB Securitas project files (looked for: " + ", ".join(markers) + ").", file=sys.stderr)
+                  print("Commit the unzipped project to the repository root, or commit the complete project ZIP, then run again.", file=sys.stderr)
+                  return 1
+              value = root.as_posix()
+              if os.environ.get("GITHUB_OUTPUT"):
+                  with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                      output.write(f"root={value}\n")
+              print(value)
+              return 0
+
+
+          if __name__ == "__main__":
+              if len(sys.argv) < 2:
+                  print(__doc__)
+                  raise SystemExit(2)
+              raise SystemExit(main(sys.argv[1:]))
+          PY
+
+      - name: Install libraries
+        working-directory: ${{ steps.project.outputs.root }}
+        run: python -m pip install --disable-pip-version-check -r Web/requirements.txt
+
+      - name: Compile and test
+        working-directory: ${{ steps.project.outputs.root }}
+        run: |
+          python -m compileall -q Web MobileApiProxy scripts windows
+          python -m unittest discover -s tests -p 'test_*.py' -v
+
+  windows:
+    name: Build Windows installer
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Find the project files
+        id: project
+        shell: bash
+        run: |
+          python - Web/app.py windows/rti_server_launcher.py <<'PY'
+          """Locate the AB Securitas project root inside a GitHub Actions workspace.
+
+          Handles both layouts people use on GitHub:
+            1. the project files committed directly (Android/, Web/, ClientPC/, ... at the repository root or in one sub-folder);
+            2. a source ZIP committed to the repository (the newest ZIP that contains the project is extracted).
+
+          Usage: python find_project_root.py <marker-file> [<marker-file> ...]
+          Prints the project root (POSIX style) and, when running in Actions, writes `root=<path>` to $GITHUB_OUTPUT.
+
+          NOTE: the same logic is embedded inline in the workflows (a workflow must be able to run before any other file
+          of the repository is available, e.g. when only a ZIP was uploaded). Keep both copies in sync.
+          """
+          import os
+          import re
+          import shutil
+          import sys
+          import tempfile
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          SKIP_DIRS = {".git", ".gradle", ".venv", "build", "node_modules", "__pycache__"}
+
+
+          def find_roots(base, markers):
+              for current, dirs, files in os.walk(base):
+                  dirs[:] = [name for name in dirs if name not in SKIP_DIRS]
+                  root = Path(current)
+                  if all((root / marker).is_file() for marker in markers):
+                      yield root.resolve()
+                      dirs[:] = []  # do not descend into a project we already found
+
+
+          def version_key(path):
+              numbers = [int(value) for value in re.findall(r"\d+", path.name)]
+              return (numbers, path.name.lower())
+
+
+          def extract_safely(archive, destination):
+              for info in archive.infolist():
+                  member = PurePosixPath(info.filename.replace("\\", "/"))
+                  if member.is_absolute() or ".." in member.parts:
+                      raise ValueError(f"Unsafe ZIP member path: {info.filename}")
+                  target = (destination / Path(*member.parts)).resolve()
+                  if destination != target and destination not in target.parents:
+                      raise ValueError(f"Unsafe ZIP member path: {info.filename}")
+                  if info.is_dir():
+                      target.mkdir(parents=True, exist_ok=True)
+                  else:
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      with archive.open(info) as source, target.open("wb") as output:
+                          shutil.copyfileobj(source, output)
+
+
+          def main(markers):
+              workspace = Path(os.environ.get("GITHUB_WORKSPACE", ".")).resolve()
+              root = next(find_roots(workspace, markers), None)
+              if root is None:
+                  archives = sorted((p for p in workspace.rglob("*.zip") if ".git" not in p.parts), key=version_key, reverse=True)
+                  for archive_path in archives:
+                      try:
+                          with zipfile.ZipFile(archive_path) as archive:
+                              names = {name.replace("\\", "/") for name in archive.namelist()}
+                              if not any(name.endswith(markers[0]) for name in names):
+                                  continue
+                              destination = Path(tempfile.mkdtemp(prefix="ab-securitas-source-", dir=workspace)).resolve()
+                              extract_safely(archive, destination)
+                          root = next(find_roots(destination, markers), None)
+                          if root is not None:
+                              print(f"Project files extracted from {archive_path}", file=sys.stderr)
+                              break
+                      except (OSError, zipfile.BadZipFile, ValueError) as error:
+                          print(f"Skipping {archive_path}: {error}", file=sys.stderr)
+              if root is None:
+                  print("Could not find the AB Securitas project files (looked for: " + ", ".join(markers) + ").", file=sys.stderr)
+                  print("Commit the unzipped project to the repository root, or commit the complete project ZIP, then run again.", file=sys.stderr)
+                  return 1
+              value = root.as_posix()
+              if os.environ.get("GITHUB_OUTPUT"):
+                  with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                      output.write(f"root={value}\n")
+              print(value)
+              return 0
+
+
+          if __name__ == "__main__":
+              if len(sys.argv) < 2:
+                  print(__doc__)
+                  raise SystemExit(2)
+              raise SystemExit(main(sys.argv[1:]))
+          PY
+
+      - name: Read the application version
+        id: version
+        working-directory: ${{ steps.project.outputs.root }}
+        shell: pwsh
+        run: |
+          $text = Get-Content Web/app.py -Raw
+          if ($text -notmatch 'APP_VERSION\s*=\s*"([^"]+)"') { throw "APP_VERSION was not found in Web/app.py" }
+          "value=$($Matches[1])" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $($Matches[1])"
+
+      - name: Install build tools
+        working-directory: ${{ steps.project.outputs.root }}
+        run: python -m pip install --disable-pip-version-check -r windows/requirements-build.txt
+
+      - name: Build the program (PyInstaller)
+        working-directory: ${{ steps.project.outputs.root }}
+        run: python -m PyInstaller --noconfirm --clean --workpath build/rti-server --distpath dist windows/rti-server.spec
+
+      - name: Smoke-test the packaged program
+        working-directory: ${{ steps.project.outputs.root }}
+        shell: pwsh
+        env:
+          RTI_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          # rti-server.exe is a windowed program (no console), so its answers are read from a file.
+          $exe = (Resolve-Path "dist\rti-server\rti-server.exe").Path
+          $out = Join-Path $env:RUNNER_TEMP "rti-server-check.txt"
+
+          function Invoke-Packaged([string]$arguments) {
+            if (Test-Path $out) { Remove-Item $out -Force }
+            $env:RTI_SELFTEST_OUT = $out
+            $p = Start-Process -FilePath $exe -ArgumentList $arguments -PassThru -WindowStyle Hidden
+            $null = $p.Handle
+            if (-not $p.WaitForExit(300000)) { $p.Kill($true); throw "rti-server.exe $arguments did not finish within 5 minutes" }
+            $text = ""
+            if (Test-Path $out) { $text = Get-Content $out -Raw }
+            Write-Host $text
+            return @{ Code = $p.ExitCode; Text = $text }
+          }
+
+          $v = Invoke-Packaged "--version"
+          if ($v.Code -ne 0 -or $v.Text.Trim() -ne $env:RTI_VERSION) { throw "Version check failed: expected $env:RTI_VERSION, program says '$($v.Text.Trim())'" }
+
+          $t = Invoke-Packaged "--selftest"
+          if ($t.Code -ne 0 -or $t.Text -notmatch "SELFTEST OK") { throw "Central Server self-test failed (exit $($t.Code))" }
+
+      - name: Start the application, check it, and quit it again
+        working-directory: ${{ steps.project.outputs.root }}
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "dist\rti-server\rti-server.exe").Path
+          $work = Join-Path $env:RUNNER_TEMP "rti-launch-check"
+          New-Item -ItemType Directory -Force $work | Out-Null
+          $env:RTI_CONFIG_DIR = Join-Path $work "config"
+          $env:RTI_DATA_DIR = Join-Path $work "data"
+          $env:RTI_BACKUP_DIR = Join-Path $work "backups"
+          $env:RTI_WEB_HOST = "127.0.0.1"
+          $env:RTI_WEB_PORT = "5093"
+          $env:RTI_MOBILE_PROXY_HOST = "127.0.0.1"
+          $env:RTI_MOBILE_PROXY_PORT = "5293"
+
+          function Stop-All { taskkill /F /T /IM rti-server.exe 2>&1 | Out-Null }
+          function Show-Logs { Get-ChildItem -Recurse $work -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { "--- $($_.FullName)"; Get-Content $_.FullName -Tail 40 } }
+
+          $p = Start-Process -FilePath $exe -ArgumentList "--background" -PassThru
+          $ok = $false
+          foreach ($i in 1..90) {
+            Start-Sleep -Seconds 1
+            if ($p.HasExited) { break }
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:5293/api/mobile/health" -TimeoutSec 3
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch { }
+          }
+          if (-not $ok) { Show-Logs; Stop-All; throw "The application did not start the server within 90 seconds" }
+
+          $info = Join-Path $env:RTI_CONFIG_DIR "app.json"
+          if (-not (Test-Path $info)) { Show-Logs; Stop-All; throw "The application did not write its app.json" }
+          $app = Get-Content $info -Raw | ConvertFrom-Json
+          $headers = @{ "X-RTI-Token" = $app.token }
+          $state = Invoke-RestMethod -Headers $headers "http://127.0.0.1:$($app.port)/api/state"
+          Write-Host "Manager API: state=$($state.state) version=$($state.version) notification-area icon=$($state.settings.tray)"
+          if ($state.state -ne "running") { Show-Logs; Stop-All; throw "The manager reports '$($state.state)'" }
+
+          Invoke-RestMethod -Method Post -Headers $headers -ContentType "application/json" -Body "{}" "http://127.0.0.1:$($app.port)/api/action/quit" | Out-Null
+          $deadline = (Get-Date).AddSeconds(40)
+          while ((Get-Process -Name rti-server -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+          if (Get-Process -Name rti-server -ErrorAction SilentlyContinue) { Show-Logs; Stop-All; throw "Quit did not stop the application and the server" }
+          Write-Host "The application started the server, answered, and quit cleanly."
+
+      - name: Install Inno Setup if the runner does not have it
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (-not (Test-Path $iscc)) { throw "Inno Setup compiler (ISCC.exe) was not found" }
+
+      - name: Build the installer and the portable package
+        working-directory: ${{ steps.project.outputs.root }}
+        shell: pwsh
+        env:
+          RTI_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          New-Item -ItemType Directory -Force dist-installers | Out-Null
+          & $iscc "/DMyAppVersion=$env:RTI_VERSION" "windows\installer\server.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Installer build failed" }
+          Compress-Archive -Path dist\rti-server\* -DestinationPath "dist-installers\AB-Securitas-RTI-Server-Portable-$env:RTI_VERSION.zip" -Force
+          Get-ChildItem dist-installers -File | Where-Object { $_.Extension -ne ".sha256" } | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Set-Content -Encoding ascii "$($_.FullName).sha256"
+          }
+          Get-ChildItem dist-installers | Format-Table Name, Length
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: AB-Securitas-RTI-Server-Windows
+          path: ${{ steps.project.outputs.root }}/dist-installers/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        if: inputs.publish_release
+        working-directory: ${{ steps.project.outputs.root }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RTI_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          tag="v${RTI_VERSION}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist-installers/* --clobber
+          else
+            gh release create "$tag" dist-installers/* --target "$GITHUB_SHA" \
+              --title "AB Securitas Real Time Inspector ${RTI_VERSION}" \
+              --notes "Windows installer and portable package for the Central Server desktop application (server manager window + web dashboard + mobile API). See the README for setup."
+          fi
