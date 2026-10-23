@@ -177,7 +177,7 @@ jobs:
           if (Test-Path ../out/screenshots/screenshots.txt) { Get-Content ../out/screenshots/screenshots.txt } else { "screenshots.txt was not written" }
           if ($p.ExitCode -ne 0) {
             Get-ChildItem ../out/screenshots/logs -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { "--- $($_.Name)"; Get-Content $_.FullName -Tail 200 }
-            Get-WinEvent -FilterHashtable @{ LogName = "Application"; StartTime = (Get-Date).AddMinutes(-10) } -MaxEvents 20 -ErrorAction SilentlyContinue |
+            Get-WinEvent -FilterHashtable @{ LogName = "Application"; Level = 1, 2; StartTime = (Get-Date).AddMinutes(-10) } -MaxEvents 10 -ErrorAction SilentlyContinue |
               Where-Object { $_.ProviderName -in ".NET Runtime", "Application Error" } | Format-List TimeCreated, ProviderName, Message
             throw "Screenshot run failed with exit code $($p.ExitCode)"
           }
@@ -252,9 +252,75 @@ jobs:
           path: test-results
           if-no-files-found: ignore
 
+  android:
+    name: Android (core tests, lint, APK)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AdvancedWeighbridge/android
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Validate the Gradle wrapper
+        run: |
+          set -euo pipefail
+          expected=$(curl -sSfL https://services.gradle.org/distributions/gradle-8.14.3-wrapper.jar.sha256)
+          echo "${expected}  gradle/wrapper/gradle-wrapper.jar" | sha256sum -c -
+
+      - name: Core unit tests (API client, JSON, live/not-live rules)
+        run: ./gradlew --no-daemon -p core test
+
+      - name: Lint and build the APKs
+        env:
+          AWMS_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          AWMS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          AWMS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          AWMS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ANDROID_KEYSTORE_BASE64}" ]; then
+            echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/awms-release.jks"
+            export AWMS_KEYSTORE_FILE="${RUNNER_TEMP}/awms-release.jks"
+          fi
+          ./gradlew --no-daemon lintDebug assembleDebug assembleRelease
+          rm -f "${RUNNER_TEMP}/awms-release.jks"
+          mkdir -p ../../out/android
+          cp app/build/outputs/apk/debug/app-debug.apk "../../out/android/AdvancedWeighbridge-Mobile-${AWMS_VERSION}-debug.apk"
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "../../out/android/AdvancedWeighbridge-Mobile-${AWMS_VERSION}.apk"
+            echo "Release APK signed with the configured key." >> "$GITHUB_STEP_SUMMARY"
+          else
+            cp app/build/outputs/apk/release/app-release-unsigned.apk "../../out/android/AdvancedWeighbridge-Mobile-${AWMS_VERSION}-release-unsigned.apk"
+            echo "No signing key configured: the release APK is unsigned; install the debug APK for testing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cp app/build/reports/lint-results-debug.html ../../out/android/lint-report.html
+          (cd ../../out/android && sha256sum *.apk)
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: out/android
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-android
+          path: |
+            AdvancedWeighbridge/android/core/build/reports/tests
+            AdvancedWeighbridge/android/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
   package:
     name: Final package
-    needs: [linux, docker, windows]
+    needs: [linux, docker, windows, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -264,14 +330,21 @@ jobs:
           name: windows
           path: dl/windows
 
+      - uses: actions/download-artifact@v7
+        with:
+          name: android
+          path: dl/android
+
       - name: Assemble
         run: |
           set -euo pipefail
           V=$AWMS_VERSION
           P=package/AdvancedWeighbridge-$V
-          mkdir -p $P/windows $P/cloud $P/docs $P/test-reports
+          mkdir -p $P/windows $P/android $P/cloud $P/docs $P/test-reports
           cp dl/windows/installer/AdvancedWeighbridgeSetup.exe $P/
           cp dl/windows/*.zip $P/windows/
+          cp dl/android/*.apk $P/android/
+          cp dl/android/lint-report.html $P/test-reports/android-lint-report.html
           cp -r dl/windows/screenshots $P/docs/screenshots
           cp dl/windows/selftest.txt dl/windows/installed-selftest.txt $P/test-reports/
           cp -r AdvancedWeighbridge/deploy/cloud/. $P/cloud/

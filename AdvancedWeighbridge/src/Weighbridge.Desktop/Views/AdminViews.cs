@@ -52,7 +52,7 @@ internal static class Ui
         {
             if (path.StartsWith("Is", StringComparison.Ordinal) || path is "MfaEnabled" or "Valid")
             {
-                grid.Columns.Add(new DataGridCheckBoxColumn { Header = header, Binding = new Binding(path) });
+                grid.Columns.Add(new DataGridCheckBoxColumn { Header = header, Binding = new Binding(path) { Mode = BindingMode.OneWay } });
                 continue;
             }
             var binding = new Binding(path);
@@ -111,7 +111,7 @@ public sealed class UsersView : UserControl, IPage
 
     public UsersView()
     {
-        _users.Columns[5] = new DataGridCheckBoxColumn { Header = "Must change password", Binding = new Binding("MustChangePassword") };
+        _users.Columns[5] = new DataGridCheckBoxColumn { Header = "Must change password", Binding = new Binding("MustChangePassword") { Mode = BindingMode.OneWay } };
         Content = Ui.Page(
             Ui.H1(Loc.T("nav.users", "Users & roles")),
             Ui.Card(Ui.Row(Ui.Btn(Loc.T("common.add", "Add"), AddAsync, "Button.Primary"), Ui.Btn(Loc.T("common.edit", "Edit"), EditAsync), Ui.Btn("Reset password", ResetAsync),

@@ -229,7 +229,7 @@ public sealed class MasterDataView : UserControl, IPage
         foreach (var (header, path) in columns)
         {
             grid.Columns.Add(path.StartsWith("Is", StringComparison.Ordinal)
-                ? new DataGridCheckBoxColumn { Header = header, Binding = new Binding(path) }
+                ? new DataGridCheckBoxColumn { Header = header, Binding = new Binding(path) { Mode = BindingMode.OneWay } }
                 : new DataGridTextColumn
                 {
                     Header = header,

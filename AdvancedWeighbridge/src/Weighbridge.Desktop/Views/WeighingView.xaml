@@ -145,7 +145,7 @@
                             <DataGridTextColumn Header="Vehicle" Binding="{Binding VehicleReg}" Width="*" />
                             <DataGridTextColumn Header="Net" Binding="{Binding NetG, Converter={StaticResource Grams}}" Width="Auto" />
                             <DataGridTextColumn Header="Status" Binding="{Binding Status, Converter={StaticResource TxStatus}}" Width="Auto" />
-                            <DataGridCheckBoxColumn Header="Manual" Binding="{Binding HasManualWeight}" Width="Auto" />
+                            <DataGridCheckBoxColumn Header="Manual" Binding="{Binding HasManualWeight, Mode=OneWay}" Width="Auto" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>

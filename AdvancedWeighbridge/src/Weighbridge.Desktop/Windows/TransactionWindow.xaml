@@ -42,8 +42,8 @@
                             <DataGridTextColumn Header="Stage" Binding="{Binding Stage}" />
                             <DataGridTextColumn Header="Source" Binding="{Binding Source}" />
                             <DataGridTextColumn Header="Weight" Binding="{Binding WeightG, Converter={StaticResource Grams}}" />
-                            <DataGridCheckBoxColumn Header="Stable" Binding="{Binding IsStable}" />
-                            <DataGridCheckBoxColumn Header="Override" Binding="{Binding UnstableOverride}" />
+                            <DataGridCheckBoxColumn Header="Stable" Binding="{Binding IsStable, Mode=OneWay}" />
+                            <DataGridCheckBoxColumn Header="Override" Binding="{Binding UnstableOverride, Mode=OneWay}" />
                             <DataGridTextColumn Header="Captured" Binding="{Binding CapturedUtc, Converter={StaticResource Time}, ConverterParameter='yyyy-MM-dd HH:mm:ss'}" />
                             <DataGridTextColumn Header="Age (ms)" Binding="{Binding ReadingAgeMs}" />
                             <DataGridTextColumn Header="Operator" Binding="{Binding OperatorName}" />

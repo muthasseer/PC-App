@@ -63,6 +63,26 @@ class DisplayTest {
     }
 
     @Test
+    fun `a refresh that stopped arriving makes the value not live`() {
+        val fetched = java.time.Instant.parse("2026-10-23T10:00:00Z")
+        val s = site(5.0, wb = wb)
+        assertEquals(LiveState.LIVE_STABLE, LiveView.at(s, wb, fetched, fetched.plusSeconds(30)).state)
+        val later = LiveView.at(s, wb, fetched, fetched.plusSeconds(120))
+        assertEquals(LiveState.NOT_LIVE, later.state)
+        assertEquals(125.0, later.ageSeconds)
+    }
+
+    @Test
+    fun `report periods follow the local calendar`() {
+        val now = java.time.ZonedDateTime.of(2026, 3, 1, 9, 30, 0, 0, java.time.ZoneId.of("Asia/Colombo"))
+        assertEquals(TimeRange("2026-02-28T18:30:00Z", "2026-03-01T18:30:00Z"), Periods.range(Period.TODAY, now))
+        assertEquals(TimeRange("2026-02-27T18:30:00Z", "2026-02-28T18:30:00Z"), Periods.range(Period.YESTERDAY, now))
+        assertEquals(TimeRange("2026-01-31T18:30:00Z", "2026-02-28T18:30:00Z"), Periods.range(Period.LAST_MONTH, now))
+        assertEquals("2026-02-22T18:30:00Z", Periods.range(Period.LAST_7_DAYS, now).fromUtc)
+        assertEquals(TimeRange(null, null), Periods.range(Period.ALL, now))
+    }
+
+    @Test
     fun `disconnected and unshared weights`() {
         val off = wb.copy(connection = "Silent", liveG = null)
         assertEquals(LiveState.DISCONNECTED, LiveView.of(site(3.0, wb = off), off).state)

@@ -37,8 +37,8 @@
                 <DataGridTextColumn Header="Net" Binding="{Binding NetG, Converter={StaticResource Grams}}" />
                 <DataGridTextColumn Header="Status" Binding="{Binding Status, Converter={StaticResource TxStatus}}" />
                 <DataGridTextColumn Header="Mode" Binding="{Binding OperatingMode}" />
-                <DataGridCheckBoxColumn Header="Manual" Binding="{Binding HasManualWeight}" />
-                <DataGridCheckBoxColumn Header="Override" Binding="{Binding HasOverride}" />
+                <DataGridCheckBoxColumn Header="Manual" Binding="{Binding HasManualWeight, Mode=OneWay}" />
+                <DataGridCheckBoxColumn Header="Override" Binding="{Binding HasOverride, Mode=OneWay}" />
                 <DataGridTextColumn Header="Operator" Binding="{Binding CreatedByName}" />
             </DataGrid.Columns>
         </DataGrid>

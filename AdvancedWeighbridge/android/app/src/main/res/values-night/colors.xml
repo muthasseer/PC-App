@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand">#0E3F6B</color>
+    <color name="brand_dark">#0A2E4F</color>
+    <color name="brand_text">#8CC2F5</color>
+    <color name="on_brand_secondary">#B9CDE0</color>
+    <color name="background">#111418</color>
+    <color name="surface_variant">#1B2026</color>
+    <color name="card">#1D2329</color>
+    <color name="card_stroke">#2E363F</color>
+    <color name="text_primary">#E6E9ED</color>
+    <color name="text_secondary">#A7B0BA</color>
+    <color name="text_disabled">#6B747E</color>
+    <color name="state_stable">#2E9447</color>
+    <color name="state_motion">#B86E0C</color>
+    <color name="state_error">#C9403A</color>
+    <color name="state_info">#2F72C4</color>
+    <color name="state_not_live">#626B75</color>
+</resources>
