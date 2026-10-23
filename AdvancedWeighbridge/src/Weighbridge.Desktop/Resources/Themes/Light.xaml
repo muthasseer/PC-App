@@ -1,0 +1,54 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Light theme. State colours are always shown together with a text label and an icon. -->
+    <Color x:Key="Color.Window">#F3F5F4</Color>
+    <Color x:Key="Color.Panel">#FFFFFF</Color>
+    <Color x:Key="Color.PanelAlt">#EEF2F0</Color>
+    <Color x:Key="Color.Text">#17201B</Color>
+    <Color x:Key="Color.TextMuted">#5D6B63</Color>
+    <Color x:Key="Color.Border">#D3DBD6</Color>
+    <Color x:Key="Color.Accent">#166534</Color>
+    <Color x:Key="Color.AccentHover">#14532D</Color>
+    <Color x:Key="Color.AccentText">#FFFFFF</Color>
+    <Color x:Key="Color.Nav">#14281D</Color>
+    <Color x:Key="Color.NavText">#E6EFEA</Color>
+    <Color x:Key="Color.NavSelected">#22C55E</Color>
+    <Color x:Key="Color.Danger">#B91C1C</Color>
+    <Color x:Key="Color.Warning">#A16207</Color>
+    <Color x:Key="Color.Info">#1D4ED8</Color>
+    <Color x:Key="Color.Ok">#15803D</Color>
+    <Color x:Key="Color.StateGreen">#15803D</Color>
+    <Color x:Key="Color.StateYellow">#CA8A04</Color>
+    <Color x:Key="Color.StateRed">#B91C1C</Color>
+    <Color x:Key="Color.StateBlue">#1D4ED8</Color>
+    <Color x:Key="Color.StateGrey">#4B5563</Color>
+    <Color x:Key="Color.StateText">#FFFFFF</Color>
+    <Color x:Key="Color.WeightBackground">#0B0F0D</Color>
+    <Color x:Key="Color.WeightText">#F8FAF9</Color>
+    <Color x:Key="Color.Selection">#D1FAE5</Color>
+    <SolidColorBrush x:Key="Brush.Window" Color="{StaticResource Color.Window}" />
+    <SolidColorBrush x:Key="Brush.Panel" Color="{StaticResource Color.Panel}" />
+    <SolidColorBrush x:Key="Brush.PanelAlt" Color="{StaticResource Color.PanelAlt}" />
+    <SolidColorBrush x:Key="Brush.Text" Color="{StaticResource Color.Text}" />
+    <SolidColorBrush x:Key="Brush.TextMuted" Color="{StaticResource Color.TextMuted}" />
+    <SolidColorBrush x:Key="Brush.Border" Color="{StaticResource Color.Border}" />
+    <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource Color.Accent}" />
+    <SolidColorBrush x:Key="Brush.AccentHover" Color="{StaticResource Color.AccentHover}" />
+    <SolidColorBrush x:Key="Brush.AccentText" Color="{StaticResource Color.AccentText}" />
+    <SolidColorBrush x:Key="Brush.Nav" Color="{StaticResource Color.Nav}" />
+    <SolidColorBrush x:Key="Brush.NavText" Color="{StaticResource Color.NavText}" />
+    <SolidColorBrush x:Key="Brush.NavSelected" Color="{StaticResource Color.NavSelected}" />
+    <SolidColorBrush x:Key="Brush.Danger" Color="{StaticResource Color.Danger}" />
+    <SolidColorBrush x:Key="Brush.Warning" Color="{StaticResource Color.Warning}" />
+    <SolidColorBrush x:Key="Brush.Info" Color="{StaticResource Color.Info}" />
+    <SolidColorBrush x:Key="Brush.Ok" Color="{StaticResource Color.Ok}" />
+    <SolidColorBrush x:Key="Brush.StateGreen" Color="{StaticResource Color.StateGreen}" />
+    <SolidColorBrush x:Key="Brush.StateYellow" Color="{StaticResource Color.StateYellow}" />
+    <SolidColorBrush x:Key="Brush.StateRed" Color="{StaticResource Color.StateRed}" />
+    <SolidColorBrush x:Key="Brush.StateBlue" Color="{StaticResource Color.StateBlue}" />
+    <SolidColorBrush x:Key="Brush.StateGrey" Color="{StaticResource Color.StateGrey}" />
+    <SolidColorBrush x:Key="Brush.StateText" Color="{StaticResource Color.StateText}" />
+    <SolidColorBrush x:Key="Brush.WeightBackground" Color="{StaticResource Color.WeightBackground}" />
+    <SolidColorBrush x:Key="Brush.WeightText" Color="{StaticResource Color.WeightText}" />
+    <SolidColorBrush x:Key="Brush.Selection" Color="{StaticResource Color.Selection}" />
+</ResourceDictionary>

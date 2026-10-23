@@ -168,6 +168,8 @@ public sealed class TicketService(Database db, SettingsService settings, AuditSe
 
     public static string SourceLabel(MeasurementEntity m) => m.Source switch
     {
+        // Weights from the built-in simulator are never presented as real measurements.
+        MeasurementSource.Indicator when string.Equals(m.PortDescription, "Simulator", StringComparison.Ordinal) => "SIMULATOR – training, not a real weighing",
         MeasurementSource.Manual => m.CorrectsMeasurementId is null ? "Manual entry" : "Manual correction",
         MeasurementSource.StoredTare => "Stored tare",
         _ => m.UnstableOverride ? "Indicator, override" : m.IsStable ? "Indicator, stable" : "Indicator",

@@ -67,6 +67,7 @@ public sealed class AppHost : IAsyncDisposable
         Indicator = new IndicatorManager(db, Settings, Notifications, Transports, Protocols, time, loggers);
         Cameras = new CameraService(protector, loggers.CreateLogger<CameraService>());
         Identification = new IdentificationService(MasterData, Transports, Simulator, time, loggers);
+        Profiles = new ProfileService(db, Settings, Audit, Indicator, Protocols, time);
         CloudHandler = options.CloudHandler;
     }
 
@@ -92,6 +93,7 @@ public sealed class AppHost : IAsyncDisposable
     public IndicatorManager Indicator { get; }
     public CameraService Cameras { get; }
     public IdentificationService Identification { get; }
+    public ProfileService Profiles { get; }
     public HardwareController? Hardware { get; private set; }
     public AutomationController? Automation { get; private set; }
     public CloudSyncService? Cloud { get; private set; }

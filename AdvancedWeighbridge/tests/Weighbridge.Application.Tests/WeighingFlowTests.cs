@@ -303,3 +303,40 @@ public class WeighingFlowTests
         Assert.Contains(health.Warnings, w => w.Contains("Indicator"));
     }
 }
+
+public class ProfileServiceTests
+{
+    [Fact]
+    public async Task Profiles_are_versioned_activated_and_imported_unverified()
+    {
+        await using var t = await TestHost.CreateAsync();
+        var profiles = t.Host.Profiles;
+        var (active, _) = await profiles.ActiveAsync();
+        Assert.Equal("Built-in simulator", active!.Name);
+
+        var serial = Weighbridge.Application.DefaultProfiles.GenericAscii("COM7") with { Name = "Site indicator" };
+        await Assert.ThrowsAsync<Weighbridge.Core.Security.PermissionDeniedException>(() => profiles.SaveAsync(t.Operator, serial, activate: true));
+        var bad = serial with { Connection = serial.Connection with { Serial = serial.Connection.Serial with { BaudRate = 5 } } };
+        await Assert.ThrowsAsync<ArgumentException>(() => profiles.SaveAsync(t.Admin, bad, activate: false));
+
+        var saved = await profiles.SaveAsync(t.Admin, serial, activate: true, reason: "New indicator installed");
+        Assert.Equal(1, saved.Version);
+        Assert.Equal("Site indicator", (await profiles.ActiveAsync()).Profile!.Name);
+        var changed = await profiles.SaveAsync(t.Admin, saved with { Notes = "baud checked" }, activate: false);
+        Assert.Equal(2, changed.Version);
+        var list = await profiles.ProfilesAsync();
+        Assert.Contains(list, p => p.Name == "Site indicator" && p.InUse && p.Version == 2);
+
+        // A file exported from another PC is never trusted as verified, and an older copy does not overwrite the stored one.
+        var imported = await profiles.ImportAsync(t.Admin, (saved with { Verified = true }).ToJson());
+        Assert.False(imported.Verified);
+        Assert.NotEqual(saved.Id, imported.Id);
+        Assert.EndsWith("(imported)", imported.Name);
+
+        await profiles.UpdateWeighbridgeAsync(t.Admin, "Main bridge", 100_000, 400, 20);
+        Assert.Equal(400m, (await t.Host.Weighing.LimitsAsync()).MinimumKg);
+        var audit = await t.Host.Audit.QueryAsync(t.Admin, new Weighbridge.Data.Stores.AuditFilter { Category = "Devices", PageSize = 50 });
+        Assert.Contains(audit.Items, e => e.Action == "ProfileActivated" && e.Reason == "New indicator installed");
+        Assert.True((await t.Host.Audit.VerifyAsync()).Valid);
+    }
+}
