@@ -35,7 +35,7 @@ public static class CloudStore
         s.QuerySingleOrDefaultAsync<SiteRow>($"SELECT {SiteColumns} FROM sites WHERE id = @id", new { id }, ct);
 
     public static async Task<IReadOnlyList<SiteRow>> SitesAsync(DbSession s, IReadOnlyCollection<long>? only, CancellationToken ct = default) =>
-        (await s.QueryAsync<SiteRow>($"SELECT {SiteColumns} FROM sites{(only is null ? string.Empty : " WHERE id IN @only")} ORDER BY code", new { only }, ct).ConfigureAwait(false)).ToList();
+        (await s.QueryAsync<SiteRow>($"SELECT {SiteColumns} FROM sites{(only is null ? string.Empty : " WHERE " + s.Dialect.InList("id", "@only"))} ORDER BY code", new { only = only?.ToArray() }, ct).ConfigureAwait(false)).ToList();
 
     public static Task<long> InsertSiteAsync(DbSession s, SiteRow site, CancellationToken ct = default) =>
         s.QuerySingleAsync<long>("""

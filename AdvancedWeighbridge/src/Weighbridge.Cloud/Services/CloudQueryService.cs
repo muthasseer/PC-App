@@ -100,8 +100,8 @@ public sealed class CloudQueryService(Database db, CloudOptions options, TimePro
         var args = new Dapper.DynamicParameters();
         if (user.SiteIds is not null)
         {
-            where.Add("t.site_id IN @sites");
-            args.Add("sites", user.SiteIds.DefaultIfEmpty(-1).ToList());
+            where.Add(s.Dialect.InList("t.site_id", "@sites"));
+            args.Add("sites", user.SiteIds.DefaultIfEmpty(-1).ToArray());
         }
         if (!string.IsNullOrWhiteSpace(q.Site))
         {
@@ -315,7 +315,7 @@ public sealed class CloudQueryService(Database db, CloudOptions options, TimePro
     public Task<List<NotificationDto>> NotificationsAsync(CloudPrincipal user, long? afterId, bool unreadOnly, int limit, CancellationToken ct = default) => db.ReadAsync(async s =>
     {
         var where = new List<string> { "1 = 1" };
-        if (user.SiteIds is not null) where.Add("n.site_id IN @sites");
+        if (user.SiteIds is not null) where.Add(s.Dialect.InList("n.site_id", "@sites"));
         if (afterId is not null) where.Add("n.id > @afterId");
         if (unreadOnly) where.Add("r.user_id IS NULL");
         var rows = await s.QueryAsync<NotificationRow>($"""
@@ -324,7 +324,7 @@ public sealed class CloudQueryService(Database db, CloudOptions options, TimePro
             FROM cloud_notifications n JOIN sites s ON s.id = n.site_id
             LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = @UserId
             WHERE {string.Join(" AND ", where)} ORDER BY n.id DESC LIMIT @limit
-            """, new { user.UserId, sites = user.SiteIds?.DefaultIfEmpty(-1).ToList(), afterId, limit = Math.Clamp(limit, 1, 500) }, ct).ConfigureAwait(false);
+            """, new { user.UserId, sites = user.SiteIds?.DefaultIfEmpty(-1).ToArray(), afterId, limit = Math.Clamp(limit, 1, 500) }, ct).ConfigureAwait(false);
         return rows.Select(n => new NotificationDto(n.Id, n.SiteCode, n.AtUtc, n.Severity, n.Category, n.Title, n.Message, n.EntityId, n.IsRead)).ToList();
     }, ct);
 
@@ -333,8 +333,8 @@ public sealed class CloudQueryService(Database db, CloudOptions options, TimePro
         var visible = (await s.QueryAsync<long>($"""
             SELECT n.id FROM cloud_notifications n
             LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = @UserId
-            WHERE r.user_id IS NULL{(user.SiteIds is null ? string.Empty : " AND n.site_id IN @sites")}{(ids is null ? string.Empty : " AND n.id IN @ids")}
-            """, new { user.UserId, sites = user.SiteIds?.DefaultIfEmpty(-1).ToList(), ids = ids?.Take(1000).DefaultIfEmpty(-1).ToList() }, ct).ConfigureAwait(false)).ToList();
+            WHERE r.user_id IS NULL{(user.SiteIds is null ? string.Empty : " AND " + s.Dialect.InList("n.site_id", "@sites"))}{(ids is null ? string.Empty : " AND " + s.Dialect.InList("n.id", "@ids"))}
+            """, new { user.UserId, sites = user.SiteIds?.DefaultIfEmpty(-1).ToArray(), ids = ids?.Take(1000).DefaultIfEmpty(-1).ToArray() }, ct).ConfigureAwait(false)).ToList();
         foreach (var id in visible)
         {
             await s.ExecuteAsync("INSERT INTO notification_reads (user_id, notification_id) VALUES (@UserId, @id)", new { user.UserId, id }, ct).ConfigureAwait(false);
@@ -354,7 +354,7 @@ public sealed class CloudQueryService(Database db, CloudOptions options, TimePro
         {
             var where = new List<string> { "1 = 1" };
             var args = new Dapper.DynamicParameters();
-            if (user.SiteIds is not null) { where.Add("a.site_id IN @sites"); args.Add("sites", user.SiteIds.DefaultIfEmpty(-1).ToList()); }
+            if (user.SiteIds is not null) { where.Add(s.Dialect.InList("a.site_id", "@sites")); args.Add("sites", user.SiteIds.DefaultIfEmpty(-1).ToArray()); }
             if (!string.IsNullOrWhiteSpace(site)) { where.Add("lower(s.code) = lower(@site)"); args.Add("site", site.Trim()); }
             if (from is { } f) { where.Add("a.at_utc >= @from"); args.Add("from", Iso.ToText(f)); }
             if (to is { } t) { where.Add("a.at_utc < @to"); args.Add("to", Iso.ToText(t)); }

@@ -40,6 +40,9 @@ public sealed class SqlDialect(DatabaseProvider provider)
     /// <summary>Case-insensitive "contains" comparison that works on both engines.</summary>
     public string ContainsCi(string column, string parameter) => $"lower({column}) LIKE lower({parameter}) ESCAPE '\\'";
 
+    /// <summary>"column is one of the values in the list parameter" (Dapper expands lists on SQLite and passes arrays to PostgreSQL).</summary>
+    public string InList(string column, string parameter) => IsPostgres ? $"{column} = ANY({parameter})" : $"{column} IN {parameter}";
+
     public static string LikePattern(string text) =>
         "%" + text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal) + "%";
 }
