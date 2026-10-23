@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Weighbridge.Cloud\Weighbridge.Cloud.csproj" />
+    <ProjectReference Include="..\..\src\Weighbridge.Application\Weighbridge.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The desktop test host drives the real sync client against the in-memory cloud server. -->
+    <Compile Include="..\Weighbridge.Application.Tests\TestHost.cs" Link="Desktop\TestHost.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

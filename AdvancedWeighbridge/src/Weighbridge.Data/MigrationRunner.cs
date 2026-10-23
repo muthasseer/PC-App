@@ -17,13 +17,13 @@ public sealed record MigrationResult(int FromVersion, int ToVersion, IReadOnlyLi
 /// </summary>
 public static partial class MigrationRunner
 {
-    [GeneratedRegex(@"Migrations\.(Sqlite|PostgreSql)\.(\d{3})_([\w]+)\.sql$")]
+    [GeneratedRegex(@"Migrations\.(\w+)\.(\d{3})_([\w]+)\.sql$")]
     private static partial Regex ResourceName();
 
-    public static IReadOnlyList<Migration> Load(DatabaseProvider provider)
+    public static IReadOnlyList<Migration> Load(DatabaseProvider provider, Assembly? assembly = null, string? folder = null)
     {
-        var folder = provider == DatabaseProvider.Sqlite ? "Sqlite" : "PostgreSql";
-        var assembly = typeof(MigrationRunner).Assembly;
+        folder ??= provider == DatabaseProvider.Sqlite ? "Sqlite" : "PostgreSql";
+        assembly ??= typeof(MigrationRunner).Assembly;
         var list = new List<Migration>();
         foreach (var name in assembly.GetManifestResourceNames())
         {
@@ -49,10 +49,11 @@ public static partial class MigrationRunner
 
     /// <param name="beforeApply">Called once before the first pending migration on a database that already has a schema
     /// (the application takes a safety backup here).</param>
-    public static async Task<MigrationResult> MigrateAsync(Database db, ILogger? log = null, Func<int, Task>? beforeApply = null, CancellationToken ct = default)
+    public static async Task<MigrationResult> MigrateAsync(Database db, ILogger? log = null, Func<int, Task>? beforeApply = null, CancellationToken ct = default,
+        Assembly? assembly = null, string? folder = null)
     {
         log ??= NullLogger.Instance;
-        var migrations = Load(db.Options.Provider);
+        var migrations = Load(db.Options.Provider, assembly, folder);
         Dictionary<int, string> applied;
         await using (var s = await db.OpenAsync(ct).ConfigureAwait(false))
         {

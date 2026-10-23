@@ -182,7 +182,7 @@ public sealed record RefreshRequest(string RefreshToken);
 
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
-public sealed record UserInfoDto(long Id, string Username, string DisplayName, string Role, IReadOnlyList<string> Permissions, IReadOnlyList<string> Sites, bool MfaEnabled);
+public sealed record UserInfoDto(long Id, string Username, string DisplayName, string Role, IReadOnlyList<string> Permissions, IReadOnlyList<string> Sites, bool MfaEnabled, bool MustChangePassword = false, bool MfaSetupRequired = false);
 
 public sealed record SiteDto(long Id, string Code, string Name, DateTimeOffset? LastHeartbeatUtc, bool Online, string? AppVersion);
 
@@ -224,3 +224,39 @@ public sealed record CreateSiteRequest(string Code, string Name);
 public sealed record CreateSiteResponse(SiteDto Site, string SiteKey);
 
 public sealed record AuditEventDto(long Id, string SiteCode, DateTimeOffset AtUtc, string Username, string Category, string Action, string? EntityType, string? EntityId, string Summary, string? Reason);
+
+/// <summary>Error body of every failed API call (HTTP 4xx/5xx).</summary>
+public sealed record ErrorDto(string Error, bool? MfaRequired = null);
+
+public sealed record VersionDto(string Product, string Version, string ApiVersion, DateTimeOffset ServerUtc);
+
+public sealed record MfaSetupResponse(string Secret, string ProvisioningUri, string QrPngBase64);
+
+public sealed record MfaEnableRequest(string Secret, string Code);
+
+public sealed record MfaDisableRequest(string Password, string? Code);
+
+public sealed record LogoutRequest(string RefreshToken);
+
+public sealed record MarkReadRequest(IReadOnlyList<long> Ids);
+
+public sealed record UpdateUserRequest(string? DisplayName, string? Role, IReadOnlyList<string>? Sites, bool? IsActive);
+
+public sealed record ResetPasswordRequest(string NewPassword);
+
+public sealed record CloudUserDto(long Id, string Username, string DisplayName, string Role, bool IsActive, bool MfaEnabled, bool Locked, bool MustChangePassword, DateTimeOffset? LastLoginUtc, IReadOnlyList<string> Sites);
+
+public sealed record AdminSiteDto(long Id, string Code, string Name, bool IsActive, string KeyPrefix, DateTimeOffset CreatedUtc, DateTimeOffset? LastHeartbeatUtc, bool Online, string? AppVersion);
+
+public sealed record SiteUserListDto(string SiteCode, string Username, string DisplayName, string Role, bool IsActive, DateTimeOffset? LastLoginUtc);
+
+public sealed record ConflictDto(long Id, string SiteCode, string EntityType, string Uid, int? LocalVersion, int? ServerVersion, DateTimeOffset AtUtc);
+
+/// <summary>
+/// Result of the cloud-side continuity check of a site's audit trail: every event must reference the hash of the event
+/// before it. A missing, re-ordered or replaced event breaks the chain. (Full content hashes are verified at the site,
+/// which also holds the before/after values that are not uploaded.)
+/// </summary>
+public sealed record AuditContinuityDto(string SiteCode, long Checked, bool Valid, long? FirstLocalId, long? LastLocalId, long? BrokenAtLocalId, string Message);
+
+public sealed record TicketVerifyDto(bool Valid, string Message, string? TicketNo, string? SiteCode, string? Status, string? VehicleReg, long? NetG, DateTimeOffset? CompletedUtc);

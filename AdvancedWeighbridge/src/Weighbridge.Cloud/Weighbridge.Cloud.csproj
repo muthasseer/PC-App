@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Optional central server: site synchronisation API, web dashboard and the API used by the Android app. -->
+  <PropertyGroup>
+    <RootNamespace>Weighbridge.Cloud</RootNamespace>
+    <AssemblyName>Weighbridge.Cloud</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Weighbridge.Core\Weighbridge.Core.csproj" />
+    <ProjectReference Include="..\Weighbridge.Data\Weighbridge.Data.csproj" />
+    <ProjectReference Include="..\Weighbridge.Contracts\Weighbridge.Contracts.csproj" />
+    <ProjectReference Include="..\Weighbridge.Reporting\Weighbridge.Reporting.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Migrations\**\*.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Weighbridge.Cloud.Tests" />
+  </ItemGroup>
+</Project>

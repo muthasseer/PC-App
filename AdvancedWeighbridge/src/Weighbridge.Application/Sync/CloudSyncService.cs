@@ -329,7 +329,15 @@ public sealed class CloudSyncService : IDisposable
     {
         if (response.IsSuccessStatusCode) return;
         var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        throw new HttpRequestException($"Cloud returned {(int)response.StatusCode} {response.ReasonPhrase}: {(body.Length > 200 ? body[..200] : body)}", null, response.StatusCode);
+        string? message = null;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("error", out var e)) message = e.GetString();
+        }
+        catch (JsonException) { }
+        message ??= body.Length > 200 ? body[..200] : body;
+        throw new HttpRequestException($"Cloud returned {(int)response.StatusCode} {response.ReasonPhrase}: {message}", null, response.StatusCode);
     }
 
     private CloudStatus Publish(CloudStatus status)

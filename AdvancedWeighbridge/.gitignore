@@ -22,3 +22,7 @@ android/core-tests/build/
 *.db-wal
 *.db-shm
 !samples/**
+
+# Cloud server runtime data (database, generated key file)
+src/Weighbridge.Cloud/data/
+cloud-keys.json
