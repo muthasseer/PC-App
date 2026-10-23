@@ -208,6 +208,12 @@ public static class TransactionStore
         s.QuerySingleOrDefaultAsync<TransactionEntity>($"SELECT {Columns} {From} WHERE t.site_id = @siteId AND t.vehicle_reg_norm = @norm AND t.status = 'Pending'",
             new { siteId, norm = VehicleRegistration.Normalize(registration) }, ct);
 
+    public static Task<TransactionEntity?> ReplacementOfAsync(DbSession s, long transactionId, CancellationToken ct = default) =>
+        s.QuerySingleOrDefaultAsync<TransactionEntity>($"SELECT {Columns} {From} WHERE t.replaces_transaction_id = @transactionId ORDER BY t.id DESC LIMIT 1", new { transactionId }, ct);
+
+    public static Task<int> PrintCountAsync(DbSession s, long transactionId, CancellationToken ct = default) =>
+        s.QuerySingleAsync<int>("SELECT CAST(COUNT(*) AS INTEGER) FROM print_history WHERE transaction_id = @transactionId AND action IN ('Print', 'Reprint')", new { transactionId }, ct);
+
     public static async Task<IReadOnlyList<TransactionEntity>> PendingAsync(DbSession s, long? siteId = null, CancellationToken ct = default) =>
         (await s.QueryAsync<TransactionEntity>($"SELECT {Columns} {From} WHERE t.status = 'Pending' {(siteId is null ? "" : "AND t.site_id = @siteId")} ORDER BY t.created_utc",
             new { siteId }, ct).ConfigureAwait(false)).ToList();

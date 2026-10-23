@@ -72,6 +72,7 @@ public sealed partial class SimulatorWorld
     public void DriveOn(SimVehicle vehicle, bool loaded)
     {
         lock (_gate) BeginEntering(vehicle, loaded, _time.GetUtcNow());
+        VehicleArriving?.Invoke(vehicle, loaded);
     }
 
     public void DriveOff()
