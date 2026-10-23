@@ -56,6 +56,11 @@ public sealed record SimulatorSettings
     public decimal TruckGrossKg { get; init; } = 32500m;
     public decimal TruckTareKg { get; init; } = 12300m;
 
+    /// <summary>Indicator display resolution; the simulated weight is rounded to it like a real indicator.</summary>
+    public decimal DivisionKg { get; init; } = 10m;
+
+    public decimal CapacityKg { get; init; } = 80000m;
+
     /// <summary>When true the simulator drives a vehicle on and off the deck automatically.</summary>
     public bool AutoCycle { get; init; } = true;
 }

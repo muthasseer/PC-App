@@ -34,6 +34,9 @@ public sealed record IndicatorSnapshot
     public string? LastRejectReason { get; init; }
     public DateTimeOffset? LastRejectAt { get; init; }
 
+    /// <summary>Frame sequence number of the last rejected frame (frames in one read share a timestamp).</summary>
+    public long? LastRejectSequence { get; init; }
+
     public long FramesParsed { get; init; }
     public long FramesRejected { get; init; }
     public long ReconnectCount { get; init; }
@@ -52,5 +55,7 @@ public sealed record IndicatorSnapshot
     public double? AgeMs(DateTimeOffset now) => Latest is null ? null : (now - Latest.ReceivedAt).TotalMilliseconds;
 
     /// <summary>The newest frame received was rejected (so the latest valid reading may no longer be current).</summary>
-    public bool NewestFrameInvalid => LastRejectAt is { } r && (Latest is null || r > Latest.ReceivedAt);
+    public bool NewestFrameInvalid => LastRejectSequence is { } rs
+        ? Latest is null || rs > Latest.Sequence
+        : LastRejectAt is { } r && (Latest is null || r > Latest.ReceivedAt);
 }
