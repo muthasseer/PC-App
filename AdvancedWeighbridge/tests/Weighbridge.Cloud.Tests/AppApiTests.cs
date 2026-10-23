@@ -146,6 +146,16 @@ public class AppApiTests
         Assert.Equal(HttpStatusCode.OK, index.StatusCode);
         Assert.Equal("text/html", index.Content.Headers.ContentType!.MediaType);
 
+        // The dashboard must work under the strict CSP (no inline script or style) and never build HTML from data.
+        var html = await index.Content.ReadAsStringAsync();
+        Assert.DoesNotMatch(@"<script(?![^>]*\bsrc=)", html);
+        Assert.DoesNotContain("style=", html);
+        var js = await anonymous.GetStringAsync("/app.js");
+        Assert.DoesNotContain("innerHTML", js);
+        Assert.DoesNotContain("insertAdjacentHTML", js);
+        Assert.DoesNotContain("eval(", js);
+        Assert.DoesNotContain("localStorage", js); // tokens never outlive the browser tab
+
         // Secrets are generated once and kept in a private key file next to the database.
         var keyFile = Path.Combine(f.DataDirectory, "cloud-keys.json");
         Assert.True(File.Exists(keyFile));

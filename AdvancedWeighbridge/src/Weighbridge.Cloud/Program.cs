@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Weighbridge.Cloud.Endpoints;
@@ -16,6 +17,7 @@ if (problems.Count > 0) throw new InvalidOperationException("The AWMS Cloud conf
 var dataDirectory = cloud.ResolveDataDirectory(builder.Environment.ContentRootPath);
 var keys = CloudKeys.Resolve(cloud, dataDirectory);
 
+builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDirectory, "dataprotection"))).SetApplicationName("AWMS.Cloud");
 builder.Services.AddSingleton(cloud);
 builder.Services.AddSingleton(keys);
 builder.Services.AddSingleton(new SecretBox(keys.DataKey));

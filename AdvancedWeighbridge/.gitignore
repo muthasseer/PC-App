@@ -26,3 +26,4 @@ android/core-tests/build/
 # Cloud server runtime data (database, generated key file)
 src/Weighbridge.Cloud/data/
 cloud-keys.json
+deploy/cloud/.env

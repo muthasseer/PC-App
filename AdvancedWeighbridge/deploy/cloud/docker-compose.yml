@@ -1,0 +1,62 @@
+# AWMS Cloud: PostgreSQL + the cloud server + Caddy (automatic HTTPS certificates).
+# 1. Copy .env.example to .env and fill it in.  2. docker compose up -d --build
+# The DNS name in AWMS_DOMAIN must point at this server and ports 80/443 must be reachable for the certificate.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: awms
+      POSTGRES_USER: awms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U awms -d awms"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  cloud:
+    build:
+      context: ../..
+      dockerfile: deploy/cloud/Dockerfile
+    image: awms-cloud:1.0.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      Cloud__DatabaseProvider: PostgreSql
+      Cloud__ConnectionString: Host=db;Database=awms;Username=awms;Password=${POSTGRES_PASSWORD}
+      # Only used on the very first start, when the server has no users yet. Remove after signing in.
+      Cloud__BootstrapAdminUsername: ${AWMS_ADMIN_USER:-admin}
+      Cloud__BootstrapAdminPassword: ${AWMS_ADMIN_PASSWORD:-}
+      Cloud__TrustForwardedHeaders: "true"
+      Cloud__TimeZone: ${AWMS_TIMEZONE:-Asia/Colombo}
+      Cloud__RequireMfaForAdministrators: ${AWMS_REQUIRE_ADMIN_MFA:-false}
+    volumes:
+      - clouddata:/data
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - cloud
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      AWMS_DOMAIN: ${AWMS_DOMAIN:?Set AWMS_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+
+volumes:
+  pgdata:
+  clouddata:
+  caddydata:
+  caddyconfig:
