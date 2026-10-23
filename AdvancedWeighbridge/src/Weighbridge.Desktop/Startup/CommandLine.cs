@@ -24,7 +24,8 @@ public sealed record CommandLine
     public string? OutputFile { get; init; }
     public bool ShowHelp { get; init; }
 
-    public bool Headless => SelfTest || ListPorts || InitOnly || ShowHelp;
+    /// <summary>Unattended modes: errors go to the console or a report file, never to a message box.</summary>
+    public bool Headless => SelfTest || ListPorts || InitOnly || ShowHelp || Screenshots is not null;
 
     public static CommandLine Parse(IReadOnlyList<string> args)
     {

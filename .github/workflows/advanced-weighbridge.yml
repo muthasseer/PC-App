@@ -174,8 +174,13 @@ jobs:
       - name: Screenshots
         run: |
           $p = Start-Process -FilePath ../out/desktop/AdvancedWeighbridge.exe -ArgumentList "--screenshots", "$PWD/../out/screenshots" -Wait -PassThru
-          Get-Content ../out/screenshots/screenshots.txt
-          if ($p.ExitCode -ne 0) { throw "Screenshot run failed with exit code $($p.ExitCode)" }
+          if (Test-Path ../out/screenshots/screenshots.txt) { Get-Content ../out/screenshots/screenshots.txt } else { "screenshots.txt was not written" }
+          if ($p.ExitCode -ne 0) {
+            Get-ChildItem ../out/screenshots/logs -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { "--- $($_.Name)"; Get-Content $_.FullName -Tail 200 }
+            Get-WinEvent -FilterHashtable @{ LogName = "Application"; StartTime = (Get-Date).AddMinutes(-10) } -MaxEvents 20 -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProviderName -in ".NET Runtime", "Application Error" } | Format-List TimeCreated, ProviderName, Message
+            throw "Screenshot run failed with exit code $($p.ExitCode)"
+          }
 
       - name: Install Inno Setup if the runner does not have it
         run: |

@@ -143,8 +143,19 @@ public static class Dialogs
 
     public static void Error(string message, string? title = null) => Show(message, title ?? Loc.T("app.title"), MessageBoxImage.Error);
 
+    /// <summary>
+    /// Set by unattended runs (screenshots): messages are reported here instead of opening a modal box, and
+    /// confirmations answer "No". Interactive use never sets it.
+    /// </summary>
+    public static Action<MessageBoxImage, string>? Unattended { get; set; }
+
     public static bool Confirm(string message, string? title = null)
     {
+        if (Unattended is { } report)
+        {
+            report(MessageBoxImage.Question, message);
+            return false;
+        }
         var owner = Owner;
         var r = owner is null
             ? MessageBox.Show(message, title ?? Loc.T("app.title"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No)
@@ -154,6 +165,11 @@ public static class Dialogs
 
     private static void Show(string message, string title, MessageBoxImage image)
     {
+        if (Unattended is { } report)
+        {
+            report(image, message);
+            return;
+        }
         var owner = Owner;
         if (owner is null) MessageBox.Show(message, title, MessageBoxButton.OK, image);
         else MessageBox.Show(owner, message, title, MessageBoxButton.OK, image);

@@ -23,15 +23,49 @@ namespace Weighbridge.Desktop.Startup;
 /// </summary>
 internal static class ScreenshotRunner
 {
+    private static readonly Lock LogLock = new();
+
     public static async Task<int> RunAsync(CommandLine options)
     {
         var output = Directory.CreateDirectory(options.Screenshots!).FullName;
+        var logPath = Path.Combine(output, "screenshots.txt");
+        File.WriteAllText(logPath, $"Screenshot run started {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz}{Environment.NewLine}");
+        void Note(string line)
+        {
+            lock (LogLock) File.AppendAllText(logPath, line + Environment.NewLine);
+        }
+
+        // The log is written as the run progresses and every exception lands in it, so a failure on a build agent
+        // without a desktop session can be diagnosed from the CI output alone.
+        var uiErrors = 0;
+        System.Windows.Application.Current.DispatcherUnhandledException += (_, e) =>
+        {
+            Interlocked.Increment(ref uiErrors);
+            Note("UI EXCEPTION: " + e.Exception);
+            e.Handled = true;
+        };
+        Dialogs.Unattended = (kind, message) =>
+        {
+            if (kind == MessageBoxImage.Error) Interlocked.Increment(ref uiErrors);
+            Note($"DIALOG ({kind}): {message}");
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => Note("UNHANDLED EXCEPTION: " + e.ExceptionObject);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Note("UNOBSERVED TASK EXCEPTION: " + e.Exception);
+            e.SetObserved();
+        };
+
         var dir = Directory.CreateTempSubdirectory("awms-screens-");
-        var log = new List<string>();
+        var loggers = Logging.Create(Path.Combine(output, "logs"));
+        App.Log = loggers.CreateLogger("AWMS");
+        var step = "start-up";
         try
         {
-            App.Host = await AppHost.CreateAsync(new AppHostOptions { Paths = new AppPaths(dir.FullName) });
+            step = "create host";
+            App.Host = await AppHost.CreateAsync(new AppHostOptions { Paths = new AppPaths(dir.FullName), Logging = loggers });
             var host = App.Host;
+            step = "initialise demonstration data";
             await host.Setup.InitializeAsync(new SetupRequest
             {
                 Company = new CompanySettings { Name = "Kegalle Metal Quarry (Pvt) Ltd", Address = "Colombo Road, Kegalle" },
@@ -42,14 +76,18 @@ internal static class ScreenshotRunner
             await host.Settings.SaveAsync(SettingKeys.Hardware, HardwareConfig.CreateSimulated(), admin);
             await SeedAsync(host, admin);
             host.Session.SignIn(admin);
+            step = "start simulated devices";
             await host.StartDevicesAsync(admin);
             await App.ApplyAppearanceAsync();
+            Note("Host ready (simulated devices, demonstration data).");
 
+            step = "login window";
             var login = new LoginWindow();
             login.Show();
-            await Shot(login, Path.Combine(output, "01-login.png"), log);
+            await Shot(login, Path.Combine(output, "01-login.png"), Note);
             login.Close();
 
+            step = "main window";
             var main = new MainWindow { WindowState = WindowState.Normal, Width = 1600, Height = 900, Left = 0, Top = 0 };
             System.Windows.Application.Current.MainWindow = main;
             main.Show();
@@ -60,38 +98,47 @@ internal static class ScreenshotRunner
             var n = 2;
             foreach (var page in pages)
             {
+                step = "page " + page;
                 main.Navigate(page);
-                await Shot(main, Path.Combine(output, $"{n++:00}-{page}.png"), log, page == "monitor" ? 3000 : 1500);
+                await Shot(main, Path.Combine(output, $"{n++:00}-{page}.png"), Note, page == "monitor" ? 3000 : 1500);
             }
             foreach (var (code, name) in new[] { ("si", "sinhala"), ("ta", "tamil") })
             {
+                step = "language " + name;
                 Loc.Apply(code);
                 main.Navigate("history");
                 main.Navigate("weighing");
-                await Shot(main, Path.Combine(output, $"{n++:00}-weighing-{name}.png"), log);
+                await Shot(main, Path.Combine(output, $"{n++:00}-weighing-{name}.png"), Note);
             }
             Loc.Apply("en");
+            step = "dark theme";
             ThemeManager.Apply("Dark");
-            await Shot(main, Path.Combine(output, $"{n++:00}-weighing-dark.png"), log);
+            await Shot(main, Path.Combine(output, $"{n++:00}-weighing-dark.png"), Note);
             ThemeManager.Apply("Light");
+            step = "transaction window";
             var recent = await host.History.RecentAsync(1);
             if (recent.Count > 0)
             {
                 var detail = new TransactionWindow(recent[0].Id);
                 detail.Show();
-                await Shot(detail, Path.Combine(output, $"{n++:00}-transaction.png"), log);
+                await Shot(detail, Path.Combine(output, $"{n++:00}-transaction.png"), Note);
                 detail.Close();
             }
+            step = "shut down";
             main.Hide();
             await host.DisposeAsync();
             App.Host = null!; // already disposed; App.OnExit must not dispose it again
-            File.WriteAllLines(Path.Combine(output, "screenshots.txt"), log);
+            if (uiErrors > 0)
+            {
+                Note($"FAILED: {uiErrors} UI error(s), see above.");
+                return 1;
+            }
+            Note("Completed.");
             return 0;
         }
         catch (Exception e)
         {
-            log.Add("FAILED: " + e);
-            File.WriteAllLines(Path.Combine(output, "screenshots.txt"), log);
+            Note($"FAILED during '{step}': {e}");
             return 1;
         }
         finally
@@ -99,6 +146,7 @@ internal static class ScreenshotRunner
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             try { dir.Delete(true); }
             catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
     }
 
@@ -147,7 +195,7 @@ internal static class ScreenshotRunner
         };
     }
 
-    private static async Task Shot(Window window, string path, List<string> log, int settleMs = 1500)
+    private static async Task Shot(Window window, string path, Action<string> note, int settleMs = 1500)
     {
         await Task.Delay(settleMs);
         await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
@@ -160,7 +208,7 @@ internal static class ScreenshotRunner
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         await using (var file = File.Create(path)) encoder.Save(file);
-        log.Add($"{Path.GetFileName(path)} {width}x{height}");
+        note($"{Path.GetFileName(path)} {width}x{height}");
     }
 
     private static async Task Wait(Func<bool> condition, int seconds)

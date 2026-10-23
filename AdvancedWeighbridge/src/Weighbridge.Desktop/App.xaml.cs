@@ -19,7 +19,7 @@ public partial class App : System.Windows.Application
 
     public static AppHost Host { get; internal set; } = null!;
     public static CommandLine Options { get; private set; } = new();
-    public static Microsoft.Extensions.Logging.ILogger Log { get; private set; } = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+    public static Microsoft.Extensions.Logging.ILogger Log { get; internal set; } = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
     /// <summary>Raised when an operator signs in or out (the main window rebuilds its navigation).</summary>
     public static event EventHandler<UserContext?>? UserChanged;

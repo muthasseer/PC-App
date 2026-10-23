@@ -12,30 +12,54 @@ using Weighbridge.Devices.IO;
 
 namespace Weighbridge.Application.Tests;
 
-/// <summary>In-memory stand-in for the AWMS cloud API.</summary>
+/// <summary>
+/// In-memory stand-in for the AWMS cloud API. The sync service's background loop calls it concurrently with the
+/// test, so every collection is guarded and the public properties return snapshots.
+/// </summary>
 public sealed class FakeCloud : HttpMessageHandler
 {
+    private readonly Lock _lock = new();
+    private readonly List<(string Path, string Body, string? Key)> _requests = [];
+    private readonly List<RemoteCommandDto> _commands = [];
+    private readonly List<(long Id, CommandAck Ack)> _acks = [];
+    private readonly HashSet<string> _transactionUids = [];
+
     public bool Online { get; set; } = true;
     public string? ConflictUid { get; set; }
-    public List<(string Path, string Body, string? Key)> Requests { get; } = [];
-    public List<RemoteCommandDto> Commands { get; } = [];
-    public List<(long Id, CommandAck Ack)> Acks { get; } = [];
-    public HashSet<string> TransactionUids { get; } = [];
+    public IReadOnlyList<(string Path, string Body, string? Key)> Requests { get { lock (_lock) return [.. _requests]; } }
+    public IReadOnlyList<(long Id, CommandAck Ack)> Acks { get { lock (_lock) return [.. _acks]; } }
+    public IReadOnlyCollection<string> TransactionUids { get { lock (_lock) return [.. _transactionUids]; } }
+
+    public void AddCommand(RemoteCommandDto command)
+    {
+        lock (_lock) _commands.Add(command);
+    }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (!Online) throw new HttpRequestException("Network unreachable");
         var path = request.RequestUri!.AbsolutePath;
         var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
-        Requests.Add((path, body, request.Headers.TryGetValues(Api.SiteKeyHeader, out var k) ? k.First() : null));
+        var key = request.Headers.TryGetValues(Api.SiteKeyHeader, out var k) ? k.First() : null;
+        lock (_lock) _requests.Add((path, body, key));
         object? reply = null;
-        if (path.EndsWith("/sync/heartbeat", StringComparison.Ordinal)) reply = new HeartbeatResponse(DateTimeOffset.UtcNow, Commands.Count);
-        else if (path.EndsWith("/sync/commands", StringComparison.Ordinal)) reply = Commands.ToList();
+        if (path.EndsWith("/sync/heartbeat", StringComparison.Ordinal))
+        {
+            lock (_lock) reply = new HeartbeatResponse(DateTimeOffset.UtcNow, _commands.Count);
+        }
+        else if (path.EndsWith("/sync/commands", StringComparison.Ordinal))
+        {
+            lock (_lock) reply = _commands.ToList();
+        }
         else if (path.Contains("/sync/commands/", StringComparison.Ordinal))
         {
             var id = long.Parse(path.Split('/')[^2]);
-            Acks.Add((id, JsonSerializer.Deserialize<CommandAck>(body, Api.Json)!));
-            Commands.RemoveAll(c => c.Id == id);
+            var ack = JsonSerializer.Deserialize<CommandAck>(body, Api.Json)!;
+            lock (_lock)
+            {
+                _acks.Add((id, ack));
+                _commands.RemoveAll(c => c.Id == id);
+            }
             reply = new { ok = true };
         }
         else if (path.EndsWith("/sync/users", StringComparison.Ordinal)) reply = new SyncBatchResult([]);
@@ -46,7 +70,10 @@ public sealed class FakeCloud : HttpMessageHandler
             foreach (var item in doc.RootElement.GetProperty("items").EnumerateArray())
             {
                 var uid = item.GetProperty("uid").GetString()!;
-                if (path.EndsWith("/sync/transactions", StringComparison.Ordinal)) TransactionUids.Add(uid);
+                if (path.EndsWith("/sync/transactions", StringComparison.Ordinal))
+                {
+                    lock (_lock) _transactionUids.Add(uid);
+                }
                 results.Add(uid == ConflictUid ? new SyncItemResult(uid, SyncItemStatus.Conflict, 9, "Different content at the same version") : new SyncItemResult(uid, SyncItemStatus.Accepted, null, null));
             }
             reply = new SyncBatchResult(results);
@@ -102,7 +129,7 @@ public class CloudSyncTests
 
         // A cancellation requested by an authorised cloud user is applied locally and acknowledged.
         var second = (await t.CaptureAsync(t.Operator, "SYNC-2", 9000)).Transaction!;
-        cloud.Commands.Add(new RemoteCommandDto(41, Guid.NewGuid(), CommandTypes.CancelTransaction, second.Uid.ToString("D"), "Wrong customer", "manager@hq", DateTimeOffset.UtcNow, "Pending", null));
+        cloud.AddCommand(new RemoteCommandDto(41, Guid.NewGuid(), CommandTypes.CancelTransaction, second.Uid.ToString("D"), "Wrong customer", "manager@hq", DateTimeOffset.UtcNow, "Pending", null));
         await sync.RunOnceAsync();
         var ack = Assert.Single(cloud.Acks);
         Assert.True(ack.Ack.Success, ack.Ack.Message);
