@@ -1,0 +1,21 @@
+Advanced Weighbridge is installed.
+
+First start
+  The first start asks for the company details and creates the administrator account. The built-in simulator is
+  active until the weight indicator is configured with Devices > Indicator setup.
+
+Connecting the indicator
+  - USB-to-serial adapters need the driver from the adapter manufacturer (FTDI, Prolific, Silicon Labs CP210x,
+    WCH CH340). Windows Update usually installs it. This setup does not install drivers.
+  - The serial ports found during installation are listed in
+    C:\ProgramData\AdvancedWeighbridge\logs\install-ports.txt
+  - Run the indicator set-up wizard and confirm the decoded weight against the value shown on the indicator before
+    using the system for trade weighing.
+
+Data
+  All data is stored in C:\ProgramData\AdvancedWeighbridge. Daily backups are enabled by default; configure a second
+  backup location (USB drive or network share) under Administration > Settings > Backup.
+
+Self-test
+  "AdvancedWeighbridge.exe --selftest" checks this PC (database, serial ports, printing, simulated weighing) without
+  touching your data.

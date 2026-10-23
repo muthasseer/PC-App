@@ -189,7 +189,7 @@ public sealed class CloudSyncService : IDisposable
                 };
                 if (path is null)
                 {
-                    foreach (var item in group) await _db.ReadAsync(s => SyncQueueStore.MarkFailedAsync(s, item.Id, $"Unsupported entity type {item.EntityType}", now.AddDays(1), ct), ct).ConfigureAwait(false);
+                    foreach (var item in group) await _db.ReadAsync(s => SyncQueueStore.MarkFailedAsync(s, item, $"Unsupported entity type {item.EntityType}", now.AddDays(1), ct), ct).ConfigureAwait(false);
                     continue;
                 }
                 var items = group.ToList();
@@ -218,12 +218,12 @@ public sealed class CloudSyncService : IDisposable
                     switch (r.Status)
                     {
                         case SyncItemStatus.Accepted or SyncItemStatus.Unchanged:
-                            await _db.ReadAsync(s => SyncQueueStore.MarkSentAsync(s, item.Id, _time.GetUtcNow(), ct), ct).ConfigureAwait(false);
+                            await _db.ReadAsync(s => SyncQueueStore.MarkSentAsync(s, item, _time.GetUtcNow(), ct), ct).ConfigureAwait(false);
                             break;
                         case SyncItemStatus.Stale or SyncItemStatus.Conflict:
                             await _db.InTransactionAsync(async s =>
                             {
-                                await SyncQueueStore.MarkConflictAsync(s, item, r.ServerVersion, r.Message ?? r.Status.ToString(), _time.GetUtcNow(), ct).ConfigureAwait(false);
+                                if (!await SyncQueueStore.MarkConflictAsync(s, item, r.ServerVersion, r.Message ?? r.Status.ToString(), _time.GetUtcNow(), ct).ConfigureAwait(false)) return 0;
                                 await _audit.WriteAsync(s, UserContext.System, "Cloud", "SyncConflict", $"{item.EntityType} {item.EntityUid}: {r.Status} (local v{item.EntityVersion}, server v{r.ServerVersion})", item.EntityType, item.EntityUid, reason: r.Message, ct: ct).ConfigureAwait(false);
                                 return 0;
                             }, ct).ConfigureAwait(false);
@@ -322,7 +322,7 @@ public sealed class CloudSyncService : IDisposable
     private async Task MarkFailed(SyncQueueEntity item, string error, CancellationToken ct)
     {
         var delay = TimeSpan.FromSeconds(Math.Min(1800, 30 * Math.Pow(2, Math.Min(item.Attempts, 10))));
-        await _db.ReadAsync(s => SyncQueueStore.MarkFailedAsync(s, item.Id, error, _time.GetUtcNow() + delay, ct), ct).ConfigureAwait(false);
+        await _db.ReadAsync(s => SyncQueueStore.MarkFailedAsync(s, item, error, _time.GetUtcNow() + delay, ct), ct).ConfigureAwait(false);
     }
 
     private static async Task EnsureAsync(HttpResponseMessage response, CancellationToken ct)

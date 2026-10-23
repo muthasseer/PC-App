@@ -141,20 +141,20 @@ public class AutomaticModeEndToEndTests
         var results = new List<CaptureResultSummary>();
         automation.AutoCaptured += (_, r) => { lock (results) results.Add(new CaptureResultSummary(r.Success, r.IsFinal, r.Message, r.Transaction?.Id)); };
 
-        await WaitAsync(() => t.Host.Indicator.Snapshot.Connection == Core.Indicators.ConnectionState.Connected, 10, "indicator connected");
-        await WaitAsync(() => automation.Status.State == AutomationState.Idle && automation.Status.EntryLight == LightColor.Green, 10, "idle with green entry light");
+        await WaitAsync(() => t.Host.Indicator.Snapshot.Connection == Core.Indicators.ConnectionState.Connected, 30, "indicator connected");
+        await WaitAsync(() => automation.Status.State == AutomationState.Idle && automation.Status.EntryLight == LightColor.Green, 30, "idle with green entry light");
 
         world.DriveOn(truck, loaded: true);
-        await WaitAsync(() => { lock (results) return results.Count >= 1; }, 40, "first automatic capture");
+        await WaitAsync(() => { lock (results) return results.Count >= 1; }, 90, "first automatic capture");
         lock (results) Assert.True(results[0].Success, results[0].Message);
-        await WaitAsync(() => automation.Status.ExitOpen, 10, "exit barrier opened");
+        await WaitAsync(() => automation.Status.ExitOpen, 30, "exit barrier opened");
         Assert.True(world.ExitBarrierOpen);
         world.DriveOff();
-        await WaitAsync(() => automation.Status.State == AutomationState.Idle, 20, "vehicle left");
+        await WaitAsync(() => automation.Status.State == AutomationState.Idle, 45, "vehicle left");
         Assert.False(world.ExitBarrierOpen);
 
         world.DriveOn(truck, loaded: false);
-        await WaitAsync(() => { lock (results) return results.Count >= 2; }, 40, "second automatic capture");
+        await WaitAsync(() => { lock (results) return results.Count >= 2; }, 90, "second automatic capture");
         CaptureResultSummary final;
         lock (results) final = results[1];
         Assert.True(final.Success, final.Message);

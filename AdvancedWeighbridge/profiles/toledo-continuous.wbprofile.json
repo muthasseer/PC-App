@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "id": "3e1c6a10-0000-4a00-8000-000000000005",
+  "version": 1,
+  "name": "Mettler Toledo continuous output",
+  "manufacturer": "Mettler Toledo (and compatibles)",
+  "model": "Continuous mode, STX ... CR + checksum",
+  "notes": "EXAMPLE profile. Confirm the line settings and the decoded weight against the indicator display (set-up wizard step 4) before use. Typical for IND-series and many compatible indicators. Status bytes give motion, overload and decimal position.",
+  "connection": {
+    "transport": "Serial",
+    "serial": {
+      "portName": "COM1",
+      "baudRate": 9600,
+      "dataBits": 7,
+      "parity": "Even",
+      "stopBits": "One",
+      "handshake": "None",
+      "dtrEnable": true,
+      "rtsEnable": true,
+      "readBufferSize": 8192,
+      "summary": "COM1 9600 7E1"
+    },
+    "tcp": {
+      "host": "192.168.1.100",
+      "port": 4001
+    },
+    "simulator": {
+      "template": "{status},{mode},{weight:+000000.0}kg\\r\\n",
+      "intervalMs": 100,
+      "noiseKg": 5,
+      "truckGrossKg": 32500,
+      "truckTareKg": 12300,
+      "divisionKg": 10,
+      "capacityKg": 80000,
+      "autoCycle": true
+    },
+    "readTimeoutMs": 3000,
+    "reconnectIntervalMs": 3000
+  },
+  "framing": {
+    "mode": "StartEnd",
+    "terminator": "\\r\\n",
+    "anyLineEnding": true,
+    "startMarker": "<STX>",
+    "endMarker": "<CR>",
+    "trailerLength": 1,
+    "fixedLength": 0,
+    "idleGapMs": 60,
+    "maxFrameLength": 32
+  },
+  "checksum": {
+    "kind": "TwosComplement7",
+    "location": "Trailer",
+    "asciiHex": false,
+    "includeStartMarker": true,
+    "includeEndMarker": true
+  },
+  "parser": {
+    "mode": "Protocol",
+    "encoding": "Ascii",
+    "delimiter": ",",
+    "weightField": -1,
+    "unitField": -1,
+    "statusFields": [],
+    "statusSpans": [],
+    "numberIndex": -1,
+    "protocolName": "toledo-continuous",
+    "protocolSettings": {},
+    "decimalSeparator": "Point",
+    "thousandsSeparator": "None",
+    "impliedDecimals": 0,
+    "reverseDigits": false,
+    "multiplier": 1,
+    "maxDigits": 9,
+    "allowNegative": true,
+    "defaultUnit": "Kilogram",
+    "requireUnit": false,
+    "allowSingleLetterUnits": false,
+    "statusRules": [],
+    "useDefaultStatusRules": true,
+    "rejectNonPrintable": true,
+    "minLength": 1,
+    "maxLength": 200,
+    "maxPlausibleKg": 1000000,
+    "effectiveStatusRules": [
+      {
+        "token": "ST",
+        "flags": "Stable",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "STA",
+        "flags": "Stable",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "STABLE",
+        "flags": "Stable",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "US",
+        "flags": "Motion",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "UNST",
+        "flags": "Motion",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "UNSTABLE",
+        "flags": "Motion",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "MO",
+        "flags": "Motion",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "MOTION",
+        "flags": "Motion",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "OL",
+        "flags": "Overload",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "OVER",
+        "flags": "Overload",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "OVERLOAD",
+        "flags": "Overload",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "UL",
+        "flags": "Underload",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "UNDER",
+        "flags": "Underload",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "ERR",
+        "flags": "Error",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "ERROR",
+        "flags": "Error",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "GS",
+        "flags": "Gross",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "GROSS",
+        "flags": "Gross",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "NT",
+        "flags": "Net",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "NET",
+        "flags": "Net",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "TR",
+        "flags": "Tare",
+        "match": "Word",
+        "caseSensitive": false
+      },
+      {
+        "token": "TARE",
+        "flags": "Tare",
+        "match": "Word",
+        "caseSensitive": false
+      }
+    ]
+  },
+  "stability": {
+    "mode": "Both",
+    "windowMs": 2000,
+    "toleranceKg": 20,
+    "minSamples": 3,
+    "maxGapMs": 1500
+  },
+  "poll": {
+    "enabled": false,
+    "command": "<ENQ>",
+    "intervalMs": 250
+  },
+  "verified": false
+}

@@ -347,8 +347,8 @@ public class MiscStoreTests
         var due = await SyncQueueStore.DueAsync(s, t.Now, 10);
         Assert.Equal(2, due.Count);
         Assert.Equal(2, due.Single(d => d.EntityUid == "u1").EntityVersion);
-        await SyncQueueStore.MarkFailedAsync(s, due[0].Id, "offline", t.Now.AddMinutes(1));
-        await SyncQueueStore.MarkSentAsync(s, due[1].Id, t.Now);
+        await SyncQueueStore.MarkFailedAsync(s, due[0], "offline", t.Now.AddMinutes(1));
+        await SyncQueueStore.MarkSentAsync(s, due[1], t.Now);
         Assert.Empty(await SyncQueueStore.DueAsync(s, t.Now, 10));
         Assert.Single(await SyncQueueStore.DueAsync(s, t.Now.AddMinutes(2), 10));
         var counts = await SyncQueueStore.CountsAsync(s);
@@ -363,6 +363,35 @@ public class MiscStoreTests
 
         await DeviceEventStore.AddAsync(s, new DeviceEventEntity { AtUtc = t.Now, Device = "COM3", EventType = "Disconnected", Message = "cable" });
         Assert.Single(await DeviceEventStore.QueryAsync(s, t.Now.AddHours(-1), t.Now.AddHours(1)));
+    }
+}
+
+public class SyncQueueRaceTests
+{
+    /// <summary>
+    /// A transaction changes while its previous version is being uploaded. The upload result for the old version must
+    /// not mark the row as sent, otherwise the newer version would never reach the cloud.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(TestDatabases.Providers), MemberType = typeof(TestDatabases))]
+    public async Task Upload_result_for_an_older_version_does_not_hide_a_newer_one(string provider)
+    {
+        await using var t = await TestDatabases.CreateAsync(provider);
+        await using var s = await t.Db.OpenAsync();
+        await SyncQueueStore.EnqueueAsync(s, "Transaction", "u1", 1, "{\"status\":\"Pending\"}", t.Now);
+        var inFlight = Assert.Single(await SyncQueueStore.DueAsync(s, t.Now, 10));
+
+        // The second weighing completes the ticket while version 1 is on its way to the server.
+        await SyncQueueStore.EnqueueAsync(s, "Transaction", "u1", 2, "{\"status\":\"Completed\"}", t.Now);
+        Assert.False(await SyncQueueStore.MarkSentAsync(s, inFlight, t.Now));
+        Assert.Equal(0, await SyncQueueStore.MarkFailedAsync(s, inFlight, "timeout", t.Now.AddHours(1)));
+        Assert.False(await SyncQueueStore.MarkConflictAsync(s, inFlight, 1, "conflict", t.Now));
+
+        var next = Assert.Single(await SyncQueueStore.DueAsync(s, t.Now, 10));
+        Assert.Equal(2, next.EntityVersion);
+        Assert.Contains("Completed", next.PayloadJson);
+        Assert.True(await SyncQueueStore.MarkSentAsync(s, next, t.Now));
+        Assert.Empty(await SyncQueueStore.DueAsync(s, t.Now, 10));
     }
 }
 

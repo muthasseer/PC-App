@@ -128,6 +128,8 @@ public sealed record IndicatorProfile
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             ReadCommentHandling = JsonCommentHandling.Skip,
             AllowTrailingCommas = true,
+            // Profile files are edited by people: keep "+", "<" and non-ASCII text readable (they are never embedded in HTML).
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
         o.Converters.Add(new JsonStringEnumConverter());
         return o;

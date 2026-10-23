@@ -56,20 +56,31 @@ public static class SyncQueueStore
             FROM sync_queue WHERE status IN ('Pending', 'Failed') AND next_attempt_utc <= @now ORDER BY id LIMIT @limit
             """, new { now = Iso.ToText(now), limit }, ct).ConfigureAwait(false)).ToList();
 
-    public static Task<int> MarkSentAsync(DbSession s, long id, DateTimeOffset at, CancellationToken ct = default) =>
-        s.ExecuteAsync("UPDATE sync_queue SET status = 'Sent', sent_utc = @at, last_error = NULL WHERE id = @id", new { id, at }, ct);
+    // The outcome of an upload only applies while the queue row still holds the version that was uploaded: a change
+    // made during the upload replaces the row's payload (see EnqueueAsync) and must still be sent on the next run.
 
-    public static Task<int> MarkFailedAsync(DbSession s, long id, string error, DateTimeOffset nextAttempt, CancellationToken ct = default) =>
-        s.ExecuteAsync("UPDATE sync_queue SET status = 'Failed', attempts = attempts + 1, last_error = @error, next_attempt_utc = @nextAttempt WHERE id = @id",
-            new { id, error = error.Length > 1000 ? error[..1000] : error, nextAttempt }, ct);
+    /// <summary>Marks the item as sent. Returns false when a newer version was queued meanwhile (it stays pending).</summary>
+    public static async Task<bool> MarkSentAsync(DbSession s, SyncQueueEntity item, DateTimeOffset at, CancellationToken ct = default) =>
+        await s.ExecuteAsync("UPDATE sync_queue SET status = 'Sent', sent_utc = @at, last_error = NULL WHERE id = @Id AND entity_version = @EntityVersion",
+            new { item.Id, item.EntityVersion, at }, ct).ConfigureAwait(false) == 1;
 
-    public static async Task MarkConflictAsync(DbSession s, SyncQueueEntity item, int? remoteVersion, string detail, DateTimeOffset at, CancellationToken ct = default)
+    public static Task<int> MarkFailedAsync(DbSession s, SyncQueueEntity item, string error, DateTimeOffset nextAttempt, CancellationToken ct = default) =>
+        s.ExecuteAsync("""
+            UPDATE sync_queue SET status = 'Failed', attempts = attempts + 1, last_error = @error, next_attempt_utc = @nextAttempt
+            WHERE id = @Id AND entity_version = @EntityVersion
+            """, new { item.Id, item.EntityVersion, error = error.Length > 1000 ? error[..1000] : error, nextAttempt }, ct);
+
+    /// <summary>Records a conflict reported for this version. Ignored when a newer local version is already queued (it supersedes it).</summary>
+    public static async Task<bool> MarkConflictAsync(DbSession s, SyncQueueEntity item, int? remoteVersion, string detail, DateTimeOffset at, CancellationToken ct = default)
     {
-        await s.ExecuteAsync("UPDATE sync_queue SET status = 'Conflict', last_error = @detail WHERE id = @Id", new { item.Id, detail }, ct).ConfigureAwait(false);
+        var updated = await s.ExecuteAsync("UPDATE sync_queue SET status = 'Conflict', last_error = @detail WHERE id = @Id AND entity_version = @EntityVersion",
+            new { item.Id, item.EntityVersion, detail }, ct).ConfigureAwait(false);
+        if (updated == 0) return false;
         await s.ExecuteAsync("""
             INSERT INTO sync_conflicts (entity_type, entity_uid, local_version, remote_version, detail, at_utc, resolved)
             VALUES (@EntityType, @EntityUid, @EntityVersion, @remoteVersion, @detail, @at, @resolved)
             """, new { item.EntityType, item.EntityUid, item.EntityVersion, remoteVersion, detail, at, resolved = false }, ct).ConfigureAwait(false);
+        return true;
     }
 
     public sealed record Counts(long Pending, long Failed, long Conflicts, long Sent, DateTimeOffset? OldestPending);
