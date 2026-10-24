@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Hardware integration: serial/TCP transports, indicator service, I/O controllers, cameras, ID readers. -->
+  <PropertyGroup>
+    <RootNamespace>Weighbridge.Devices</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" />
+    <PackageReference Include="System.Management" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Weighbridge.Core\Weighbridge.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Weighbridge.Devices.Tests" />
+  </ItemGroup>
+</Project>

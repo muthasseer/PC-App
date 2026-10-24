@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure domain logic: no I/O, no UI, no database. Everything here is unit-tested on Linux and Windows. -->
+  <PropertyGroup>
+    <RootNamespace>Weighbridge.Core</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Weighbridge.Core.Tests" />
+  </ItemGroup>
+</Project>

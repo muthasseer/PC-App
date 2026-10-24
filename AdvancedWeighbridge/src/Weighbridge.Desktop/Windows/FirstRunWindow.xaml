@@ -1,0 +1,87 @@
+<Window x:Class="Weighbridge.Desktop.Windows.FirstRunWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Advanced Weighbridge – first-time set-up" Width="860" Height="760" MinWidth="720" MinHeight="560"
+        WindowStartupLocation="CenterScreen" Style="{StaticResource Window.Base}" Icon="/AdvancedWeighbridge;component/Resources/app.ico">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="{DynamicResource Brush.Nav}" Padding="24,18">
+            <StackPanel>
+                <TextBlock Text="Welcome to Advanced Weighbridge" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Brush.NavText}" />
+                <TextBlock Text="Enter the basic details once. Everything can be changed later under Administration and Devices." Foreground="{DynamicResource Brush.NavText}" Opacity="0.85" Margin="0,4,0,0" />
+            </StackPanel>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Panel}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0" Padding="20,12">
+            <DockPanel>
+                <TextBlock x:Name="ErrorText" Style="{StaticResource Text.Error}" VerticalAlignment="Center" MaxWidth="520" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="CreateButton" Content="Create and continue" Style="{StaticResource Button.Primary}" Click="OnCreate" IsDefault="True" />
+                    <Button Content="Exit" Click="OnExit" IsCancel="True" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,16">
+            <StackPanel MaxWidth="760">
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Company (printed on tickets)" Style="{StaticResource Text.H2}" Margin="0,0,0,4" />
+                        <TextBlock Text="Company name *" Style="{StaticResource Text.Label}" />
+                        <TextBox x:Name="CompanyName" />
+                        <TextBlock Text="Address" Style="{StaticResource Text.Label}" />
+                        <TextBox x:Name="CompanyAddress" />
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="Phone" Style="{StaticResource Text.Label}" /><TextBox x:Name="CompanyPhone" /></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Tax / VAT number" Style="{StaticResource Text.Label}" /><TextBox x:Name="CompanyTax" /></StackPanel>
+                        </Grid>
+                        <TextBlock Text="Language of the application and tickets" Style="{StaticResource Text.Label}" />
+                        <ComboBox x:Name="LanguageBox" Width="260" HorizontalAlignment="Left" DisplayMemberPath="Name" SelectionChanged="OnLanguageChanged" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Administrator account" Style="{StaticResource Text.H2}" Margin="0,0,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="User name *" Style="{StaticResource Text.Label}" /><TextBox x:Name="AdminUser" Text="admin" /></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Full name *" Style="{StaticResource Text.Label}" /><TextBox x:Name="AdminName" Text="Administrator" /></StackPanel>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="Password * (8+ characters, letters and digits)" Style="{StaticResource Text.Label}" /><PasswordBox x:Name="AdminPassword" /></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Repeat password *" Style="{StaticResource Text.Label}" /><PasswordBox x:Name="AdminPassword2" /></StackPanel>
+                        </Grid>
+                        <TextBlock Text="Keep this password safe. Create a personal account for every operator after signing in." Style="{StaticResource Text.Muted}" Margin="0,6,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Site and weighbridge" Style="{StaticResource Text.H2}" Margin="0,0,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="Site code *" Style="{StaticResource Text.Label}" /><TextBox x:Name="SiteCode" Text="SITE1" MaxLength="20" /></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Site name *" Style="{StaticResource Text.Label}" /><TextBox x:Name="SiteName" Text="Main site" /></StackPanel>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="Weighbridge code *" Style="{StaticResource Text.Label}" /><TextBox x:Name="WbCode" Text="WB1" MaxLength="20" /></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Weighbridge name *" Style="{StaticResource Text.Label}" /><TextBox x:Name="WbName" Text="Weighbridge 1" /></StackPanel>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="Capacity (kg) *" Style="{StaticResource Text.Label}" /><TextBox x:Name="Capacity" Text="80000" /></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Minimum weight to capture (kg) *" Style="{StaticResource Text.Label}" /><TextBox x:Name="Minimum" Text="200" /></StackPanel>
+                            <StackPanel Grid.Column="4"><TextBlock Text="Indicator division (kg) *" Style="{StaticResource Text.Label}" /><TextBox x:Name="Division" Text="10" /></StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Weight indicator" Style="{StaticResource Text.H2}" Margin="0,0,0,4" />
+                        <TextBlock Style="{StaticResource Text.Muted}"
+                                   Text="The connection to the indicator is configured with the indicator set-up wizard after signing in (Devices → Indicator setup). Until then the built-in simulator is active so that the system can be explored. The simulator is always labelled as such and its weights are marked as simulated." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/data/
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/cloud-keys.json
+android/
+installer/
+docs/
+tests/
+.git/

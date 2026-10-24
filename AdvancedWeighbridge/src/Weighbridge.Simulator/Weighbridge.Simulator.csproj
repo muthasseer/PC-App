@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Indicator emulator: sends realistic weighbridge indicator output to a serial port or TCP clients, for testing without hardware. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Weighbridge.Simulator</RootNamespace>
+    <AssemblyName>awms-indicator-simulator</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Weighbridge.Devices\Weighbridge.Devices.csproj" />
+  </ItemGroup>
+</Project>

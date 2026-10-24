@@ -1,0 +1,213 @@
+<UserControl x:Class="Weighbridge.Desktop.Views.WeighingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:infra="clr-namespace:Weighbridge.Desktop.Infrastructure"
+             xmlns:vm="clr-namespace:Weighbridge.Desktop.ViewModels"
+             xmlns:weigh="clr-namespace:Weighbridge.Core.Weighing;assembly=Weighbridge.Core"
+             d:DataContext="{d:DesignInstance vm:WeighingViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+    <UserControl.Resources>
+        <infra:GramsConverter x:Key="Grams" />
+        <infra:LocalTimeConverter x:Key="Time" />
+        <infra:BoolToVisibilityConverter x:Key="Visible" />
+        <infra:BoolToVisibilityConverter x:Key="Hidden" Invert="True" />
+        <infra:LocalizedEnumConverter x:Key="TxStatus" Prefix="tx." />
+        <infra:LocalizedEnumConverter x:Key="ModeName" Prefix="w.mode." />
+    </UserControl.Resources>
+    <UserControl.InputBindings>
+        <KeyBinding Key="F9" Command="{Binding GetWeightCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding ClearCommand}" />
+    </UserControl.InputBindings>
+    <Grid Margin="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="2*" MinWidth="380" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header: mode and simulator notice -->
+        <DockPanel Grid.ColumnSpan="3" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                <TextBlock Text="{DynamicResource s.w.mode}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" Width="190" AutomationProperties.Name="Operating mode">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock Text="{Binding Converter={StaticResource ModeName}}" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+            <Border Style="{StaticResource Pill}" Background="{DynamicResource Brush.StateBlue}" Margin="16,0,0,0" HorizontalAlignment="Left"
+                    Visibility="{Binding IsSimulator, Converter={StaticResource Visible}}">
+                <TextBlock Foreground="White" FontWeight="Bold" Text="SIMULATOR – training data, not a real weighbridge" />
+            </Border>
+        </DockPanel>
+
+        <!-- Left: weight display, actions, result, automation, lists -->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Border CornerRadius="10" Background="{DynamicResource Brush.WeightBackground}" BorderBrush="{Binding StateBrush}" BorderThickness="6" Padding="20,10">
+                <StackPanel>
+                    <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Right" Height="{Binding WeightFontSize}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding WeightText}" FontFamily="Bahnschrift SemiBold, Segoe UI" FontSize="{Binding WeightFontSize}" Foreground="{DynamicResource Brush.WeightText}"
+                                       AutomationProperties.Name="Live weight" AutomationProperties.LiveSetting="Polite" />
+                            <TextBlock Text="{Binding UnitText}" FontSize="40" Foreground="{DynamicResource Brush.WeightText}" VerticalAlignment="Bottom" Margin="14,0,0,14" Opacity="0.8" />
+                        </StackPanel>
+                    </Viewbox>
+                    <Border Background="{Binding StateBrush}" CornerRadius="6" Padding="12,6" Margin="0,8,0,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding StateSymbol}" Foreground="White" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding StateText}" Foreground="White" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Assertive" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding DetailText}" Foreground="{DynamicResource Brush.WeightText}" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,0">
+                <Button Command="{Binding GetWeightCommand}" IsEnabled="{Binding CanCapture}" Style="{StaticResource Button.Primary}" Padding="34,14" FontSize="22"
+                        Visibility="{Binding IsManualMode, Converter={StaticResource Hidden}}" ToolTip="{DynamicResource s.w.getWeightHint}" AutomationProperties.Name="Get weight (F9)">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚖" Margin="0,0,10,0" />
+                        <TextBlock Text="{DynamicResource s.w.getWeight}" />
+                        <TextBlock Text="  F9" Opacity="0.7" FontSize="14" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ManualEntryCommand}" Content="{DynamicResource s.w.manualEntry}" Padding="20,14" FontSize="16"
+                        Visibility="{Binding IsManualMode, Converter={StaticResource Visible}}" Style="{StaticResource Button.Danger}" />
+                <Button Command="{Binding PrintLastCommand}" Content="{DynamicResource s.w.print}" Padding="16,14" />
+                <Button Command="{Binding ClearCommand}" Content="{DynamicResource s.w.clear}" Padding="16,14" ToolTip="Esc" />
+            </StackPanel>
+
+            <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,12,0,0" Visibility="{Binding ResultTitle, Converter={StaticResource Visible}}">
+                <StackPanel>
+                    <TextBlock Text="{Binding ResultTitle}" FontSize="17" FontWeight="SemiBold">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Ok}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ResultIsError}" Value="True"><Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" /></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="{Binding ResultText}" TextWrapping="Wrap" Margin="0,4,0,0" FontSize="15" />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="3" Style="{StaticResource Card}" Visibility="{Binding HasAutomation, Converter={StaticResource Visible}}">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock Text="{DynamicResource s.w.automation}" Style="{StaticResource Text.H2}" Margin="0" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Command="{Binding ReleaseVehicleCommand}" Content="{DynamicResource s.w.release}" />
+                            <Button Command="{Binding AcknowledgeFaultCommand}" Content="{DynamicResource s.w.ackFault}" Style="{StaticResource Button.Danger}"
+                                    Visibility="{Binding HasFault, Converter={StaticResource Visible}}" />
+                        </StackPanel>
+                    </DockPanel>
+                    <TextBlock Text="{Binding AutomationText}" TextWrapping="Wrap" Margin="0,6,0,6" />
+                    <WrapPanel>
+                        <Border Style="{StaticResource Pill}" Background="{Binding EntryLightBrush}"><TextBlock Foreground="White"><Run Text="{DynamicResource s.w.entryLight}" />: <Run Text="{Binding EntryLightText, Mode=OneWay}" /></TextBlock></Border>
+                        <Border Style="{StaticResource Pill}" Background="{Binding ExitLightBrush}"><TextBlock Foreground="White"><Run Text="{DynamicResource s.w.exitLight}" />: <Run Text="{Binding ExitLightText, Mode=OneWay}" /></TextBlock></Border>
+                        <Border Style="{StaticResource Pill}" Background="{DynamicResource Brush.StateGrey}"><TextBlock Foreground="White"><Run Text="{DynamicResource s.w.exitBarrier}" />: <Run Text="{Binding BarrierText, Mode=OneWay}" /></TextBlock></Border>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="{DynamicResource s.w.pending}" Style="{StaticResource Text.H2}" />
+                    <DataGrid x:Name="PendingGrid" ItemsSource="{Binding Pending}" MouseDoubleClick="OnPendingDoubleClick" ToolTip="Double-click to weigh the vehicle again">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Vehicle" Binding="{Binding VehicleReg}" Width="*" />
+                            <DataGridTextColumn Header="Ticket" Binding="{Binding TicketNo}" Width="Auto" />
+                            <DataGridTextColumn Header="First" Binding="{Binding FirstG, Converter={StaticResource Grams}}" Width="Auto" />
+                            <DataGridTextColumn Header="Time" Binding="{Binding CreatedUtc, Converter={StaticResource Time}, ConverterParameter=HH:mm}" Width="Auto" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+                <DockPanel Grid.Column="2">
+                    <TextBlock DockPanel.Dock="Top" Text="{DynamicResource s.w.recent}" Style="{StaticResource Text.H2}" />
+                    <DataGrid x:Name="RecentGrid" ItemsSource="{Binding Recent}" MouseDoubleClick="OnRecentDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ticket" Binding="{Binding TicketNo}" Width="Auto" />
+                            <DataGridTextColumn Header="Vehicle" Binding="{Binding VehicleReg}" Width="*" />
+                            <DataGridTextColumn Header="Net" Binding="{Binding NetG, Converter={StaticResource Grams}}" Width="Auto" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status, Converter={StaticResource TxStatus}}" Width="Auto" />
+                            <DataGridCheckBoxColumn Header="Manual" Binding="{Binding HasManualWeight, Mode=OneWay}" Width="Auto" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Right: transaction details -->
+        <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource Card}" Margin="0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock Text="{DynamicResource s.w.vehicle}" Style="{StaticResource Text.H2}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding StageText}" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ComboBox x:Name="VehicleBox" IsEditable="True" ItemsSource="{Binding VehicleSuggestions}" FontSize="22" MinHeight="44"
+                              Text="{Binding Vehicle, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Vehicle number" IsTextSearchEnabled="True" />
+                    <TextBlock Text="{Binding ContextText}" TextWrapping="Wrap" Margin="0,6,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ContextWarning}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <CheckBox Content="{DynamicResource s.w.storedTare}" IsChecked="{Binding UseStoredTare}" Visibility="{Binding StoredTareAvailable, Converter={StaticResource Visible}}" />
+
+                    <TextBlock Text="{DynamicResource s.w.direction}" Style="{StaticResource Text.Label}" />
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="DirOut" Content="{DynamicResource s.w.outbound}" GroupName="dir" Checked="OnDirection" />
+                        <RadioButton x:Name="DirIn" Content="{DynamicResource s.w.inbound}" GroupName="dir" Checked="OnDirection" />
+                    </StackPanel>
+
+                    <TextBlock Text="{DynamicResource s.w.material}" Style="{StaticResource Text.Label}" />
+                    <ComboBox ItemsSource="{Binding Materials}" SelectedItem="{Binding Material}" IsEditable="False" />
+                    <TextBlock Text="{DynamicResource s.w.customer}" Style="{StaticResource Text.Label}" />
+                    <ComboBox ItemsSource="{Binding Customers}" SelectedItem="{Binding Customer}" IsTextSearchEnabled="True" />
+                    <TextBlock Text="{DynamicResource s.w.supplier}" Style="{StaticResource Text.Label}" />
+                    <ComboBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding Supplier}" IsTextSearchEnabled="True" />
+                    <TextBlock Text="{DynamicResource s.w.driver}" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding Driver, UpdateSourceTrigger=PropertyChanged}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="10" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="{DynamicResource s.w.deliveryNote}" Style="{StaticResource Text.Label}" />
+                            <TextBox Text="{Binding DeliveryNote, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="{DynamicResource s.w.reference}" Style="{StaticResource Text.Label}" />
+                            <TextBox Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="{DynamicResource s.common.remarks}" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding Remarks, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="60" TextWrapping="Wrap" VerticalContentAlignment="Top" />
+                    <TextBlock Style="{StaticResource Text.Muted}" Margin="0,12,0,0" FontSize="12"
+                               Text="GET WEIGHT records the latest validated indicator reading. Unstable, stale, invalid, overload or below-minimum readings are refused; an unstable override needs a supervisor and is printed on the ticket." />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

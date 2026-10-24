@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status colours match the desktop application; every state is also written out in text. -->
+<resources>
+    <color name="brand">#0B4F8A</color>
+    <color name="brand_dark">#083A66</color>
+    <color name="brand_text">#0B4F8A</color>
+    <color name="on_brand">#FFFFFF</color>
+    <color name="on_brand_secondary">#D6E4F2</color>
+    <color name="background">#F3F5F8</color>
+    <color name="surface_variant">#E7ECF2</color>
+    <color name="card">#FFFFFF</color>
+    <color name="card_stroke">#D5DCE4</color>
+    <color name="text_primary">#1B1F24</color>
+    <color name="text_secondary">#55606C</color>
+    <color name="text_disabled">#9AA3AD</color>
+    <color name="on_state">#FFFFFF</color>
+    <color name="state_stable">#1E7B34</color>
+    <color name="state_motion">#A35A00</color>
+    <color name="state_error">#B3261E</color>
+    <color name="state_info">#1F5FAD</color>
+    <color name="state_not_live">#5F6770</color>
+    <color name="launcher_background">#0B4F8A</color>
+</resources>

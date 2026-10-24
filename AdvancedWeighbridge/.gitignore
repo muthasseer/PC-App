@@ -1,0 +1,29 @@
+bin/
+obj/
+out/
+publish/
+dist/
+artifacts/
+TestResults/
+*.user
+*.suo
+.vs/
+.idea/
+*.swp
+# Android
+android/.gradle/
+android/**/build/
+android/local.properties
+android/.kotlin/
+android/core-tests/.gradle/
+android/core-tests/build/
+# Local runtime data
+*.db
+*.db-wal
+*.db-shm
+!samples/**
+
+# Cloud server runtime data (database, generated key file)
+src/Weighbridge.Cloud/data/
+cloud-keys.json
+deploy/cloud/.env

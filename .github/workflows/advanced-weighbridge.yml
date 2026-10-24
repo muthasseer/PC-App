@@ -1,0 +1,424 @@
+name: Advanced Weighbridge – build, test and package
+
+# Builds and tests every part of the Advanced Weighbridge Management System (AdvancedWeighbridge/ folder):
+#  - Linux: all automated tests on SQLite and PostgreSQL, including a real serial-port test through a virtual null-modem
+#  - Docker: builds the cloud server image and smoke-tests it against PostgreSQL
+#  - Windows: tests, desktop self-test and screenshots, AdvancedWeighbridgeSetup.exe, silent install/uninstall check
+#  - Android: companion app APK, then an emulator run against a real cloud server (sign-in, LIVE/NOT LIVE, tickets, PDF)
+#  - Package: one artifact with the installer, portable build, APK, cloud deployment, documentation and checksums
+on:
+  push:
+    paths:
+      - "AdvancedWeighbridge/**"
+      - ".github/workflows/advanced-weighbridge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advanced-weighbridge-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  AWMS_VERSION: "1.0.0"
+
+jobs:
+  linux:
+    name: Tests (Linux, SQLite + PostgreSQL)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AdvancedWeighbridge
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: awms-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: AdvancedWeighbridge/global.json
+
+      - name: Install socat (virtual null-modem for the real serial-port test)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq socat
+
+      - name: Build (all projects, including the WPF desktop for compile checks)
+        run: dotnet build AdvancedWeighbridge.sln -c Release
+
+      - name: Test
+        env:
+          WB_TEST_PG: "Host=localhost;Username=postgres;Password=awms-ci;Database=postgres"
+        run: dotnet test AdvancedWeighbridge.sln -c Release --no-build --logger "trx;LogFilePrefix=linux" --results-directory ../test-results
+
+      - name: Test summary
+        if: always()
+        shell: python
+        run: |
+          import glob, xml.etree.ElementTree as ET
+          ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+          lines = ["| Test assembly | Passed | Failed | Skipped |", "|---|---|---|---|"]
+          for f in sorted(glob.glob("../test-results/*.trx")):
+              c = ET.parse(f).getroot().find("t:ResultSummary/t:Counters", ns)
+              name = f.split("/")[-1]
+              lines.append(f"| {name} | {c.get('passed')} | {c.get('failed')} | {int(c.get('total')) - int(c.get('executed'))} |")
+          open(__import__("os").environ["GITHUB_STEP_SUMMARY"], "a").write("### Linux tests\n" + "\n".join(lines) + "\n")
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-linux
+          path: test-results
+          if-no-files-found: ignore
+
+  docker:
+    name: Cloud server image (Docker smoke test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AdvancedWeighbridge
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build -f deploy/cloud/Dockerfile -t awms-cloud:${AWMS_VERSION} .
+
+      - name: Start PostgreSQL and the cloud server
+        run: |
+          docker network create awms
+          docker run -d --name db --network awms -e POSTGRES_DB=awms -e POSTGRES_USER=awms -e POSTGRES_PASSWORD=ci-secret-123 postgres:16-alpine
+          for i in $(seq 1 30); do docker exec db pg_isready -U awms -d awms && break; sleep 2; done
+          docker run -d --name cloud --network awms -p 8080:8080 \
+            -e Cloud__DatabaseProvider=PostgreSql \
+            -e "Cloud__ConnectionString=Host=db;Database=awms;Username=awms;Password=ci-secret-123" \
+            -e Cloud__BootstrapAdminUsername=admin -e "Cloud__BootstrapAdminPassword=Bridge#Cloud2026" \
+            awms-cloud:${AWMS_VERSION}
+          for i in $(seq 1 30); do curl -fsS http://localhost:8080/api/v1/health && break; sleep 2; done
+
+      - name: Smoke test (sign-in, site key, sync, report, ticket PDF)
+        shell: python
+        run: |
+          import json, urllib.request, uuid, datetime as dt
+          B = "http://localhost:8080/api/v1"
+          def call(path, body=None, token=None, key=None):
+              req = urllib.request.Request(B + path, data=None if body is None else json.dumps(body).encode(), method="POST" if body is not None else "GET")
+              req.add_header("Content-Type", "application/json")
+              if token: req.add_header("Authorization", "Bearer " + token)
+              if key: req.add_header("X-AWMS-Site-Key", key)
+              with urllib.request.urlopen(req) as r:
+                  data = r.read()
+                  return json.loads(data) if r.headers.get_content_type() == "application/json" and data else data
+          tok = call("/auth/login", {"username": "admin", "password": "Bridge#Cloud2026"})["accessToken"]
+          tok = call("/me/password", {"currentPassword": "Bridge#Cloud2026", "newPassword": "Bridge#Cloud2026!"}, token=tok)["accessToken"]
+          key = call("/admin/sites", {"code": "CI", "name": "CI site"}, token=tok)["siteKey"]
+          now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+          uid = str(uuid.uuid4())
+          tx = {"uid": uid, "ticketNo": "CI-000001", "version": 2, "status": "Completed", "direction": "Outbound", "operatingMode": "SemiAutomatic",
+                "siteCode": "CI", "weighbridgeCode": "WB1", "vehicleReg": "WP CAB-1234", "firstG": 32000000, "secondG": 12000000, "grossG": 32000000,
+                "tareG": 12000000, "netG": 20000000, "hasManualWeight": False, "hasOverride": False, "createdBy": "op", "createdUtc": now,
+                "completedUtc": now, "updatedUtc": now, "measurements": []}
+          res = call("/sync/transactions", {"items": [tx]}, key=key)
+          assert res["results"][0]["status"] == "Accepted", res
+          summary = call("/reports/summary?groupBy=site", token=tok)
+          assert summary["totalNetG"] == 20000000, summary
+          pdf = call(f"/transactions/{uid}/ticket.pdf", token=tok)
+          assert pdf[:4] == b"%PDF", pdf[:20]
+          print("Cloud smoke test passed")
+
+      - name: Server log
+        if: always()
+        run: docker logs cloud 2>&1 | tail -100
+
+  windows:
+    name: Windows (tests, self-test, screenshots, installer)
+    runs-on: windows-latest
+    env:
+      CODESIGN_CONFIGURED: ${{ secrets.CODESIGN_PFX_BASE64 != '' }}
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: AdvancedWeighbridge
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: AdvancedWeighbridge/global.json
+
+      - name: Test on Windows (SQLite, DPAPI, Windows paths)
+        run: dotnet test AdvancedWeighbridge.sln -c Release --logger "trx;LogFilePrefix=windows" --results-directory ../test-results
+
+      - name: Publish desktop application (self-contained win-x64)
+        run: |
+          dotnet publish src/Weighbridge.Desktop/Weighbridge.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=$env:AWMS_VERSION -o ../out/desktop
+          dotnet publish src/Weighbridge.Simulator/Weighbridge.Simulator.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:Version=$env:AWMS_VERSION -o ../out/simulator
+
+      - name: Desktop self-test
+        run: |
+          $p = Start-Process -FilePath ../out/desktop/AdvancedWeighbridge.exe -ArgumentList "--selftest", "--out", "$PWD/../out/selftest.txt" -Wait -PassThru
+          Get-Content ../out/selftest.txt
+          "### Desktop self-test`n``````n$(Get-Content ../out/selftest.txt -Raw)``````" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          if ($p.ExitCode -ne 0) { throw "Self-test failed with exit code $($p.ExitCode)" }
+
+      - name: Screenshots
+        run: |
+          $p = Start-Process -FilePath ../out/desktop/AdvancedWeighbridge.exe -ArgumentList "--screenshots", "$PWD/../out/screenshots" -Wait -PassThru
+          if (Test-Path ../out/screenshots/screenshots.txt) { Get-Content ../out/screenshots/screenshots.txt } else { "screenshots.txt was not written" }
+          if ($p.ExitCode -ne 0) {
+            Get-ChildItem ../out/screenshots/logs -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { "--- $($_.Name)"; Get-Content $_.FullName -Tail 200 }
+            Get-WinEvent -FilterHashtable @{ LogName = "Application"; Level = 1, 2; StartTime = (Get-Date).AddMinutes(-10) } -MaxEvents 10 -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProviderName -in ".NET Runtime", "Application Error" } | Format-List TimeCreated, ProviderName, Message
+            throw "Screenshot run failed with exit code $($p.ExitCode)"
+          }
+
+      - name: Install Inno Setup if the runner does not have it
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (-not (Test-Path $iscc)) { throw "Inno Setup compiler (ISCC.exe) was not found" }
+
+      - name: Build AdvancedWeighbridgeSetup.exe
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:AWMS_VERSION" "/DSourceDir=$PWD\..\out\desktop" "/DOutputDir=$PWD\..\out\installer" installer\AdvancedWeighbridge.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
+      - name: Sign (only when a code-signing certificate is configured as a secret)
+        env:
+          CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
+          CODESIGN_PASSWORD: ${{ secrets.CODESIGN_PASSWORD }}
+        if: env.CODESIGN_CONFIGURED == 'true'
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODESIGN_PFX_BASE64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object FullName -like "*x64*" | Select-Object -Last 1
+          & $signtool.FullName sign /f $pfx /p $env:CODESIGN_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ..\out\installer\AdvancedWeighbridgeSetup.exe
+          Remove-Item $pfx
+
+      - name: Silent install, run, upgrade and uninstall check
+        run: |
+          $setup = Resolve-Path ..\out\installer\AdvancedWeighbridgeSetup.exe
+          $p = Start-Process $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=$PWD\..\out\install.log", "/TASKS=desktopicon" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installation failed ($($p.ExitCode))" }
+          $app = "$env:ProgramFiles\Advanced Weighbridge\AdvancedWeighbridge.exe"
+          $data = "$env:ProgramData\AdvancedWeighbridge"
+          if (-not (Test-Path $app)) { throw "The application was not installed" }
+          if (-not (Test-Path "$data\data\weighbridge.db")) { throw "The database was not prepared by the installer" }
+          Get-Content "$data\logs\install-ports.txt"
+          $t = Start-Process $app -ArgumentList "--selftest", "--out", "$PWD\..\out\installed-selftest.txt" -Wait -PassThru
+          Get-Content ..\out\installed-selftest.txt
+          if ($t.ExitCode -ne 0) { throw "Self-test of the installed application failed" }
+          # Re-running the installer is an in-place upgrade/repair that keeps the data.
+          $u = Start-Process $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "Repair/upgrade run failed ($($u.ExitCode))" }
+          $uninstaller = "$env:ProgramFiles\Advanced Weighbridge\unins000.exe"
+          $x = Start-Process $uninstaller -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
+          Start-Sleep -Seconds 3
+          if (Test-Path $app) { throw "The application was not removed" }
+          if (-not (Test-Path "$data\data\weighbridge.db")) { throw "Uninstall must keep the data unless the user chooses to delete it" }
+          "Install, self-test, repair and uninstall (data kept) passed." | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+
+      - name: Portable and tool archives
+        run: |
+          Compress-Archive -Path ..\out\desktop\* -DestinationPath ..\out\AdvancedWeighbridge-$env:AWMS_VERSION-portable-win-x64.zip
+          Compress-Archive -Path ..\out\simulator\* -DestinationPath ..\out\awms-indicator-simulator-$env:AWMS_VERSION-win-x64.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: |
+            out/installer/AdvancedWeighbridgeSetup.exe
+            out/*.zip
+            out/selftest.txt
+            out/installed-selftest.txt
+            out/install.log
+            out/screenshots
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-windows
+          path: test-results
+          if-no-files-found: ignore
+
+  android:
+    name: Android (core tests, lint, APK)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AdvancedWeighbridge/android
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Validate the Gradle wrapper
+        run: |
+          set -euo pipefail
+          expected=$(curl -sSfL https://services.gradle.org/distributions/gradle-8.14.3-wrapper.jar.sha256)
+          echo "${expected}  gradle/wrapper/gradle-wrapper.jar" | sha256sum -c -
+
+      - name: Core unit tests (API client, JSON, live/not-live rules)
+        run: ./gradlew --no-daemon -p core test
+
+      - name: Lint and build the APKs
+        env:
+          AWMS_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          AWMS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          AWMS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          AWMS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ANDROID_KEYSTORE_BASE64}" ]; then
+            echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/awms-release.jks"
+            export AWMS_KEYSTORE_FILE="${RUNNER_TEMP}/awms-release.jks"
+          fi
+          ./gradlew --no-daemon lintDebug assembleDebug assembleRelease
+          rm -f "${RUNNER_TEMP}/awms-release.jks"
+          mkdir -p ../../out/android
+          cp app/build/outputs/apk/debug/app-debug.apk "../../out/android/AdvancedWeighbridge-Mobile-${AWMS_VERSION}-debug.apk"
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "../../out/android/AdvancedWeighbridge-Mobile-${AWMS_VERSION}.apk"
+            echo "Release APK signed with the configured key." >> "$GITHUB_STEP_SUMMARY"
+          else
+            cp app/build/outputs/apk/release/app-release-unsigned.apk "../../out/android/AdvancedWeighbridge-Mobile-${AWMS_VERSION}-release-unsigned.apk"
+            echo "No signing key configured: the release APK is unsigned; install the debug APK for testing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cp app/build/reports/lint-results-debug.html ../../out/android/lint-report.html
+          (cd ../../out/android && sha256sum *.apk)
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: out/android
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-android
+          path: |
+            AdvancedWeighbridge/android/core/build/reports/tests
+            AdvancedWeighbridge/android/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
+  android-e2e:
+    name: Android end-to-end (emulator + cloud server)
+    needs: android
+    runs-on: ubuntu-latest
+    env:
+      E2E_ADMIN_PASSWORD: "Mobile#E2E2026"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: AdvancedWeighbridge/global.json
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: android
+          path: dl/android
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Start the cloud server (SQLite, plain HTTP on the runner only)
+        working-directory: AdvancedWeighbridge
+        run: |
+          dotnet build src/Weighbridge.Cloud -c Release
+          mkdir -p "$RUNNER_TEMP/cloud-data"
+          cd src/Weighbridge.Cloud
+          Cloud__DataDirectory="$RUNNER_TEMP/cloud-data" Cloud__BootstrapAdminUsername=admin Cloud__BootstrapAdminPassword="$E2E_ADMIN_PASSWORD" \
+            ASPNETCORE_URLS=http://0.0.0.0:5080 nohup dotnet bin/Release/net10.0/Weighbridge.Cloud.dll > "$RUNNER_TEMP/cloud.log" 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:5080/api/v1/health && break; sleep 1; done
+
+      - name: Run the app on an Android 15 emulator and drive it like a user
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: python3 AdvancedWeighbridge/android/e2e/mobile_e2e.py --apk "dl/android/AdvancedWeighbridge-Mobile-${AWMS_VERSION}-debug.apk" --server http://127.0.0.1:5080 --device-server http://10.0.2.2:5080 --admin-password "$E2E_ADMIN_PASSWORD" --out out/mobile-e2e
+
+      - name: Cloud server log
+        if: always()
+        run: tail -100 "$RUNNER_TEMP/cloud.log" || true
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mobile-e2e
+          path: out/mobile-e2e
+          if-no-files-found: ignore
+
+  package:
+    name: Final package
+    needs: [linux, docker, windows, android, android-e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: windows
+          path: dl/windows
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: android
+          path: dl/android
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: mobile-e2e
+          path: dl/mobile-e2e
+
+      - name: Assemble
+        run: |
+          set -euo pipefail
+          V=$AWMS_VERSION
+          P=package/AdvancedWeighbridge-$V
+          mkdir -p $P/windows $P/android $P/cloud $P/docs $P/test-reports
+          cp dl/windows/installer/AdvancedWeighbridgeSetup.exe $P/
+          cp dl/windows/*.zip $P/windows/
+          cp dl/android/*.apk $P/android/
+          cp dl/android/lint-report.html $P/test-reports/android-lint-report.html
+          cp -r dl/windows/screenshots $P/docs/screenshots
+          mkdir -p $P/docs/screenshots/mobile && cp dl/mobile-e2e/*.png $P/docs/screenshots/mobile/
+          cp dl/windows/selftest.txt dl/windows/installed-selftest.txt $P/test-reports/
+          cp -r AdvancedWeighbridge/deploy/cloud/. $P/cloud/
+          cp -r AdvancedWeighbridge/docs/. $P/docs/
+          cp -r AdvancedWeighbridge/profiles AdvancedWeighbridge/samples $P/
+          cp AdvancedWeighbridge/README.md $P/ 2>/dev/null || true
+          git archive --format=zip -o $P/AdvancedWeighbridge-$V-source.zip HEAD AdvancedWeighbridge .github/workflows/advanced-weighbridge.yml
+          (cd $P && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
+          cat $P/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AdvancedWeighbridge-${{ env.AWMS_VERSION }}
+          path: package
+          if-no-files-found: error

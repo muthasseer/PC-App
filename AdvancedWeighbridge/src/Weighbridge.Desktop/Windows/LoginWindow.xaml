@@ -1,0 +1,43 @@
+<Window x:Class="Weighbridge.Desktop.Windows.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource s.app.title}" Width="440" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Style="{StaticResource Window.Base}" Icon="/AdvancedWeighbridge;component/Resources/app.ico">
+    <StackPanel>
+        <Border Background="{DynamicResource Brush.Nav}" Padding="24,20">
+            <StackPanel Orientation="Horizontal">
+                <Image Source="/AdvancedWeighbridge;component/Resources/app-256.png" Width="44" Height="44" Margin="0,0,14,0" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{DynamicResource s.app.title}" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource Brush.NavText}" />
+                    <TextBlock x:Name="CompanyText" Foreground="{DynamicResource Brush.NavText}" Opacity="0.8" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+        <StackPanel Margin="24,16,24,20">
+            <TextBlock Text="{DynamicResource s.login.title}" Style="{StaticResource Text.H2}" Margin="0,0,0,4" />
+            <StackPanel x:Name="CredentialsPanel">
+                <TextBlock Text="{DynamicResource s.login.username}" Style="{StaticResource Text.Label}" />
+                <TextBox x:Name="UserBox" />
+                <TextBlock Text="{DynamicResource s.login.password}" Style="{StaticResource Text.Label}" />
+                <PasswordBox x:Name="PasswordBox" />
+                <StackPanel x:Name="CodePanel" Visibility="Collapsed">
+                    <TextBlock Text="{DynamicResource s.login.code}" Style="{StaticResource Text.Label}" />
+                    <TextBox x:Name="CodeBox" MaxLength="6" />
+                </StackPanel>
+            </StackPanel>
+            <StackPanel x:Name="ChangePanel" Visibility="Collapsed">
+                <TextBlock Style="{StaticResource Text.Muted}" Text="Your password must be changed before you continue." Margin="0,0,0,4" />
+                <TextBlock Text="{DynamicResource s.login.newPassword}" Style="{StaticResource Text.Label}" />
+                <PasswordBox x:Name="NewPassword" />
+                <TextBlock Text="{DynamicResource s.login.repeatPassword}" Style="{StaticResource Text.Label}" />
+                <PasswordBox x:Name="NewPassword2" />
+            </StackPanel>
+            <TextBlock x:Name="ErrorText" Style="{StaticResource Text.Error}" Margin="0,10,0,0" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                <Button x:Name="SubmitButton" Content="{DynamicResource s.login.submit}" Style="{StaticResource Button.Primary}" IsDefault="True" Click="OnSubmit" MinWidth="110" />
+                <Button Content="{DynamicResource s.common.cancel}" IsCancel="True" />
+            </StackPanel>
+            <TextBlock x:Name="LanguageLinks" Margin="0,14,0,0" HorizontalAlignment="Center" />
+        </StackPanel>
+    </StackPanel>
+</Window>

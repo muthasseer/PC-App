@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Tickets, print rasters, ESC/POS, QR codes and XLSX/CSV/PDF reports. Fonts: Noto (SIL OFL 1.1, see Fonts/OFL.txt). -->
+  <PropertyGroup>
+    <RootNamespace>Weighbridge.Reporting</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.HarfBuzz" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" />
+    <PackageReference Include="ClosedXML" />
+    <PackageReference Include="QRCoder" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Weighbridge.Core\Weighbridge.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Fonts\*.ttf" />
+    <None Include="Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" Link="licenses\Noto-OFL.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Weighbridge.Reporting.Tests" />
+  </ItemGroup>
+</Project>

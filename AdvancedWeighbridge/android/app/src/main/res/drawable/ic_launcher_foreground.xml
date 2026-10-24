@@ -1,0 +1,14 @@
+<!-- Adaptive launcher icon foreground (108dp canvas, artwork inside the 66dp safe zone). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- truck body and cab -->
+    <path android:fillColor="#FFFFFF" android:pathData="M30,44h30v20H30z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M62,50h10l7,8v6H62z" />
+    <path android:fillColor="#0B4F8A" android:pathData="M65,53h6l4,5H65z" />
+    <!-- wheels -->
+    <path android:fillColor="#FFD24A" android:pathData="M40,68m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+    <path android:fillColor="#FFD24A" android:pathData="M70,68m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+    <!-- weighbridge deck -->
+    <path android:fillColor="#FFD24A" android:pathData="M24,73h60v4H24z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M28,77h4v4h-4zM76,77h4v4h-4z" />
+</vector>

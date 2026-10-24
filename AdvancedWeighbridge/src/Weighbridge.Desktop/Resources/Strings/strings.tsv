@@ -1,0 +1,128 @@
+key	en	si	ta
+app.title	Advanced Weighbridge	උසස් බර කිරුම් පද්ධතිය	மேம்பட்ட எடைமேடை அமைப்பு
+nav.weighing	Weighing	බර කිරීම	எடையிடல்
+nav.history	History	ඉතිහාසය	வரலாறு
+nav.reports	Reports	වාර්තා	அறிக்கைகள்
+nav.master	Master data	මූලික දත්ත	முதன்மை தரவு
+nav.devices	Devices	උපාංග	சாதனங்கள்
+nav.wizard	Indicator setup	දර්ශක සැකසුම	குறிகாட்டி அமைவு
+nav.monitor	Raw data monitor	අමු දත්ත නිරීක්ෂකය	மூல தரவு கண்காணிப்பு
+nav.hardware	Lights & barriers	ලාම්පු සහ බාධක	விளக்குகள் மற்றும் தடைகள்
+nav.admin	Administration	පරිපාලනය	நிர்வாகம்
+nav.users	Users & roles	පරිශීලකයින් සහ භූමිකා	பயனர்கள் மற்றும் பங்குகள்
+nav.settings	Settings	සැකසුම්	அமைப்புகள்
+nav.backup	Backup & restore	උපස්ථ සහ ප්‍රතිස්ථාපනය	காப்புப்பிரதி மற்றும் மீட்பு
+nav.audit	Audit trail	විගණන සටහන	தணிக்கைப் பதிவு
+nav.notifications	Notifications	දැනුම්දීම්	அறிவிப்புகள்
+nav.about	System status	පද්ධති තත්ත්වය	கணினி நிலை
+nav.signout	Sign out	ඉවත් වන්න	வெளியேறு
+login.title	Sign in	පිවිසෙන්න	உள்நுழைக
+login.username	User name	පරිශීලක නාමය	பயனர் பெயர்
+login.password	Password	මුරපදය	கடவுச்சொல்
+login.code	Authentication code	සත්‍යාපන කේතය	அங்கீகாரக் குறியீடு
+login.submit	Sign in	පිවිසෙන්න	உள்நுழை
+login.changePassword	Change password	මුරපදය වෙනස් කරන්න	கடவுச்சொல்லை மாற்று
+login.newPassword	New password	නව මුරපදය	புதிய கடவுச்சொல்
+login.repeatPassword	Repeat new password	නව මුරපදය නැවත	புதிய கடவுச்சொல்லை மீண்டும்
+common.save	Save	සුරකින්න	சேமி
+common.cancel	Cancel	අවලංගු කරන්න	ரத்து செய்
+common.close	Close	වසන්න	மூடு
+common.ok	OK	හරි	சரி
+common.yes	Yes	ඔව්	ஆம்
+common.no	No	නැත	இல்லை
+common.search	Search	සොයන්න	தேடு
+common.refresh	Refresh	නැවුම් කරන්න	புதுப்பி
+common.add	Add	එක් කරන්න	சேர்
+common.edit	Edit	සංස්කරණය	திருத்து
+common.export	Export	අපනයනය	ஏற்றுமதி
+common.import	Import	ආනයනය	இறக்குமதி
+common.from	From	සිට	முதல்
+common.to	To	දක්වා	வரை
+common.reason	Reason	හේතුව	காரணம்
+common.remarks	Remarks	සටහන්	குறிப்புகள்
+common.status	Status	තත්ත්වය	நிலை
+common.date	Date	දිනය	தேதி
+common.next	Next	ඊළඟ	அடுத்து
+common.back	Back	ආපසු	பின்
+common.finish	Finish	අවසන්	முடி
+common.all	All	සියල්ල	அனைத்தும்
+w.getWeight	GET WEIGHT	බර ලබාගන්න	எடையைப் பெறு
+w.getWeightHint	F9 – captures the latest validated reading	F9 – අවසන් වලංගු කියවීම සටහන් කරයි	F9 – சமீபத்திய சரிபார்க்கப்பட்ட அளவீட்டைப் பதிவு செய்யும்
+w.manualEntry	Manual weight entry	අතින් බර ඇතුළත් කිරීම	கைமுறை எடை உள்ளீடு
+w.manualWarning	Manual weight – not a verified indicator measurement	අතින් ඇතුළත් කළ බර – තහවුරු කළ දර්ශක මිනුමක් නොවේ	கைமுறை எடை – சரிபார்க்கப்பட்ட குறிகாட்டி அளவீடு அல்ல
+w.vehicle	Vehicle number	වාහන අංකය	வாகன எண்
+w.direction	Direction	දිශාව	திசை
+w.inbound	Inbound (receiving)	ඇතුළට (ලැබීම)	உள்வரவு (பெறுதல்)
+w.outbound	Outbound (dispatch)	පිටතට (යැවීම)	வெளிச்செல்லல் (அனுப்புதல்)
+w.customer	Customer	පාරිභෝගිකයා	வாடிக்கையாளர்
+w.supplier	Supplier	සැපයුම්කරු	விநியோகஸ்தர்
+w.material	Material	ද්‍රව්‍ය	பொருள்
+w.driver	Driver	රියදුරු	ஓட்டுநர்
+w.order	Order	ඇණවුම	ஆணை
+w.deliveryNote	Delivery note	භාරදීමේ සටහන	விநியோகக் குறிப்பு
+w.reference	Reference	යොමුව	குறிப்பு எண்
+w.storedTare	Use stored tare	ගබඩා කළ හිස් බර භාවිතා කරන්න	சேமித்த வெற்று எடையைப் பயன்படுத்து
+w.first	First weighing	පළමු කිරීම	முதல் எடையிடல்
+w.second	Second weighing	දෙවන කිරීම	இரண்டாம் எடையிடல்
+w.gross	Gross	දළ බර	மொத்த எடை
+w.tare	Tare	හිස් බර	வெற்று எடை
+w.net	Net	ශුද්ධ බර	நிகர எடை
+w.mode	Mode	ක්‍රමය	பயன்முறை
+w.mode.Automatic	Automatic	ස්වයංක්‍රීය	தானியங்கி
+w.mode.SemiAutomatic	Semi-automatic	අර්ධ ස්වයංක්‍රීය	அரை தானியங்கி
+w.mode.Manual	Manual	අතින්	கைமுறை
+w.recent	Recent transactions	මෑත ගනුදෙනු	சமீபத்திய பரிவர்த்தனைகள்
+w.pending	Waiting for second weighing	දෙවන කිරීම සඳහා රැඳී සිටී	இரண்டாம் எடையிடலுக்குக் காத்திருக்கிறது
+w.clear	New vehicle	නව වාහනය	புதிய வாகனம்
+w.print	Print ticket	ටිකට් පත මුද්‍රණය	சீட்டை அச்சிடு
+w.release	Release vehicle	වාහනය නිදහස් කරන්න	வாகனத்தை விடுவி
+w.ackFault	Acknowledge fault	දෝෂය පිළිගන්න	பிழையை ஒப்புக்கொள்
+w.automation	Automation	ස්වයංක්‍රීයකරණය	தானியக்கம்
+w.entryLight	Entry light	ඇතුල්වීමේ ලාම්පුව	நுழைவு விளக்கு
+w.exitLight	Exit light	පිටවීමේ ලාම්පුව	வெளியேறும் விளக்கு
+w.exitBarrier	Exit barrier	පිටවීමේ බාධකය	வெளியேறும் தடை
+status.stable	STABLE	ස්ථායී	நிலையானது
+status.unstable	MOTION – WAIT	චලනය – රැඳී සිටින්න	அசைவு – காத்திருக்கவும்
+status.waitStable	WAITING FOR STABLE WEIGHT	ස්ථායී බර සඳහා රැඳී සිටී	நிலையான எடைக்குக் காத்திருக்கிறது
+status.overload	OVERLOAD	අධි බර	அதிக சுமை
+status.underload	UNDER RANGE	පරාසයට අඩුයි	வரம்பிற்குக் கீழே
+status.disconnected	INDICATOR DISCONNECTED	දර්ශකය සම්බන්ධ නැත	குறிகாட்டி இணைக்கப்படவில்லை
+status.commError	COMMUNICATION ERROR	සන්නිවේදන දෝෂය	தொடர்பு பிழை
+status.noData	NO DATA FROM INDICATOR	දර්ශකයෙන් දත්ත නැත	குறிகாட்டியிலிருந்து தரவு இல்லை
+status.stale	READING OUT OF DATE	කියවීම යල් පැන ගොස් ඇත	அளவீடு காலாவதியானது
+status.invalid	INVALID DATA	වලංගු නොවන දත්ත	தவறான தரவு
+status.indicatorError	INDICATOR ERROR	දර්ශක දෝෂය	குறிகாட்டி பிழை
+status.negative	NEGATIVE WEIGHT	සෘණ බර	எதிர்மறை எடை
+status.zero	ZERO	ශුන්‍ය	பூஜ்ஜியம்
+status.belowMinimum	BELOW MINIMUM WEIGHT	අවම බරට අඩුයි	குறைந்தபட்ச எடைக்குக் கீழே
+status.captured	CAPTURED	සටහන් කළා	பதிவு செய்யப்பட்டது
+status.manualMode	MANUAL MODE – NO INDICATOR	අතින් ක්‍රමය – දර්ශකයක් නැත	கைமுறை பயன்முறை – குறிகாட்டி இல்லை
+tx.Pending	Pending	අපේක්ෂිත	நிலுவையில்
+tx.Completed	Completed	සම්පූර්ණයි	முடிந்தது
+tx.Cancelled	Cancelled	අවලංගුයි	ரத்து செய்யப்பட்டது
+tx.ticket	Ticket	ටිකට් පත	சீட்டு
+tx.cancel	Cancel transaction	ගනුදෙනුව අවලංගු කරන්න	பரிவர்த்தனையை ரத்து செய்
+tx.reprint	Reprint	නැවත මුද්‍රණය	மீண்டும் அச்சிடு
+tx.pdf	Save PDF	PDF සුරකින්න	PDF சேமி
+tx.timeline	Timeline	කාල රේඛාව	காலவரிசை
+tx.measurements	Measurements	මිනුම්	அளவீடுகள்
+tx.rawFrames	Raw indicator data	අමු දර්ශක දත්ත	மூல குறிகாட்டி தரவு
+tx.images	Images	රූප	படங்கள்
+sup.title	Supervisor authorisation	අධීක්ෂක අනුමැතිය	மேற்பார்வையாளர் அங்கீகாரம்
+sup.hint	A supervisor must sign in to approve this action.	මෙම ක්‍රියාව අනුමත කිරීමට අධීක්ෂකයෙකු පිවිසිය යුතුය.	இந்தச் செயலை அங்கீகரிக்க ஒரு மேற்பார்வையாளர் உள்நுழைய வேண்டும்.
+rep.kind	Report	වාර්තාව	அறிக்கை
+rep.preview	Preview	පෙරදසුන	முன்னோட்டம்
+md.vehicles	Vehicles	වාහන	வாகனங்கள்
+md.customers	Customers	පාරිභෝගිකයින්	வாடிக்கையாளர்கள்
+md.suppliers	Suppliers	සැපයුම්කරුවන්	விநியோகஸ்தர்கள்
+md.materials	Materials	ද්‍රව්‍ය	பொருட்கள்
+md.drivers	Drivers	රියදුරන්	ஓட்டுநர்கள்
+md.transporters	Transport companies	ප්‍රවාහන සමාගම්	போக்குவரத்து நிறுவனங்கள்
+md.orders	Orders	ඇණවුම්	ஆணைகள்
+md.blacklist	Blacklist	කළු ලැයිස්තුව	தடைப்பட்டியல்
+md.approveTare	Approve stored tare	ගබඩා කළ හිස් බර අනුමත කරන්න	சேமித்த வெற்று எடையை அங்கீகரி
+set.language	Language	භාෂාව	மொழி
+set.theme	Theme	තේමාව	தீம்
+cloud.online	Cloud: connected	වලාකුළ: සම්බන්ධයි	மேகம்: இணைக்கப்பட்டது
+cloud.offline	Cloud: offline (data queued)	වලාකුළ: නොබැඳි (දත්ත පෙළගස්වා ඇත)	மேகம்: இணைப்பில்லை (தரவு வரிசையில்)
+cloud.disabled	Cloud: off	වලාකුළ: අක්‍රියයි	மேகம்: முடக்கப்பட்டது

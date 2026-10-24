@@ -1,0 +1,85 @@
+<Window x:Class="Weighbridge.Desktop.Windows.TransactionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:infra="clr-namespace:Weighbridge.Desktop.Infrastructure"
+        Title="Transaction" Width="1100" Height="820" MinWidth="820" MinHeight="560" WindowStartupLocation="CenterOwner"
+        Style="{StaticResource Window.Base}" Icon="/AdvancedWeighbridge;component/Resources/app.ico">
+    <Window.Resources>
+        <infra:GramsConverter x:Key="Grams" />
+        <infra:LocalTimeConverter x:Key="Time" />
+    </Window.Resources>
+    <DockPanel Margin="16">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="PrintButton" Content="{DynamicResource s.tx.reprint}" Click="OnPrint" />
+                <Button x:Name="PdfButton" Content="{DynamicResource s.tx.pdf}" Click="OnPdf" />
+                <Button x:Name="EditButton" Content="{DynamicResource s.common.edit}" Click="OnEdit" />
+                <Button x:Name="CorrectButton" Content="Correct first weight" Click="OnCorrect" />
+                <Button x:Name="ReissueButton" Content="Cancel and re-issue" Click="OnReissue" />
+                <Button x:Name="CancelButton" Content="{DynamicResource s.tx.cancel}" Style="{StaticResource Button.Danger}" Click="OnCancelTransaction" />
+            </StackPanel>
+            <StackPanel>
+                <TextBlock x:Name="TitleText" Style="{StaticResource Text.H1}" Margin="0" />
+                <TextBlock x:Name="SubtitleText" Style="{StaticResource Text.Muted}" />
+            </StackPanel>
+        </DockPanel>
+        <Border x:Name="ManualBanner" DockPanel.Dock="Top" Background="{DynamicResource Brush.StateYellow}" CornerRadius="6" Padding="10,6" Margin="0,0,0,8" Visibility="Collapsed">
+            <TextBlock x:Name="ManualText" Foreground="White" FontWeight="SemiBold" TextWrapping="Wrap" />
+        </Border>
+        <TabControl>
+            <TabItem Header="Details">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid x:Name="DetailsGrid" Margin="12">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="200" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="{DynamicResource s.tx.measurements}">
+                <DockPanel Margin="8">
+                    <TextBlock DockPanel.Dock="Bottom" x:Name="FramesTitle" Text="{DynamicResource s.tx.rawFrames}" Style="{StaticResource Text.H2}" />
+                    <DataGrid x:Name="MeasurementsGrid" DockPanel.Dock="Top" MaxHeight="220" SelectionChanged="OnMeasurementSelected">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Stage" Binding="{Binding Stage}" />
+                            <DataGridTextColumn Header="Source" Binding="{Binding Source}" />
+                            <DataGridTextColumn Header="Weight" Binding="{Binding WeightG, Converter={StaticResource Grams}}" />
+                            <DataGridCheckBoxColumn Header="Stable" Binding="{Binding IsStable, Mode=OneWay}" />
+                            <DataGridCheckBoxColumn Header="Override" Binding="{Binding UnstableOverride, Mode=OneWay}" />
+                            <DataGridTextColumn Header="Captured" Binding="{Binding CapturedUtc, Converter={StaticResource Time}, ConverterParameter='yyyy-MM-dd HH:mm:ss'}" />
+                            <DataGridTextColumn Header="Age (ms)" Binding="{Binding ReadingAgeMs}" />
+                            <DataGridTextColumn Header="Operator" Binding="{Binding OperatorName}" />
+                            <DataGridTextColumn Header="Profile" Binding="{Binding ProfileName}" />
+                            <DataGridTextColumn Header="Port" Binding="{Binding PortDescription}" />
+                            <DataGridTextColumn Header="Reason" Binding="{Binding ManualReason}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBox x:Name="FramesText" IsReadOnly="True" FontFamily="{StaticResource Font.Mono}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                             TextWrapping="NoWrap" VerticalContentAlignment="Top" Margin="0,8,0,0" />
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="{DynamicResource s.tx.timeline}">
+                <DataGrid x:Name="TimelineGrid" Margin="8">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Time" Binding="{Binding At, Converter={StaticResource Time}, ConverterParameter='yyyy-MM-dd HH:mm:ss'}" />
+                        <DataGridTextColumn Header="Event" Binding="{Binding Title}" />
+                        <DataGridTextColumn Header="Details" Binding="{Binding Detail}" Width="*" />
+                        <DataGridTextColumn Header="User" Binding="{Binding User}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+            <TabItem Header="{DynamicResource s.tx.images}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"><WrapPanel x:Name="ImagesPanel" Margin="8" /></ScrollViewer>
+            </TabItem>
+            <TabItem Header="Audit">
+                <DataGrid x:Name="AuditGrid" Margin="8">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Time" Binding="{Binding AtUtc, Converter={StaticResource Time}, ConverterParameter='yyyy-MM-dd HH:mm:ss'}" />
+                        <DataGridTextColumn Header="User" Binding="{Binding Username}" />
+                        <DataGridTextColumn Header="Action" Binding="{Binding Action}" />
+                        <DataGridTextColumn Header="Summary" Binding="{Binding Summary}" Width="*" />
+                        <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

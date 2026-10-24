@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- DTOs shared by the desktop sync client and the cloud server (mirrored in the Android app). No dependencies. -->
+  <PropertyGroup>
+    <RootNamespace>Weighbridge.Contracts</RootNamespace>
+  </PropertyGroup>
+</Project>
