@@ -4,7 +4,7 @@ name: Advanced Weighbridge – build, test and package
 #  - Linux: all automated tests on SQLite and PostgreSQL, including a real serial-port test through a virtual null-modem
 #  - Docker: builds the cloud server image and smoke-tests it against PostgreSQL
 #  - Windows: tests, desktop self-test and screenshots, AdvancedWeighbridgeSetup.exe, silent install/uninstall check
-#  - Android: companion app APK
+#  - Android: companion app APK, then an emulator run against a real cloud server (sign-in, LIVE/NOT LIVE, tickets, PDF)
 #  - Package: one artifact with the installer, portable build, APK, cloud deployment, documentation and checksums
 on:
   push:
@@ -318,9 +318,65 @@ jobs:
             AdvancedWeighbridge/android/app/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 
+  android-e2e:
+    name: Android end-to-end (emulator + cloud server)
+    needs: android
+    runs-on: ubuntu-latest
+    env:
+      E2E_ADMIN_PASSWORD: "Mobile#E2E2026"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: AdvancedWeighbridge/global.json
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: android
+          path: dl/android
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Start the cloud server (SQLite, plain HTTP on the runner only)
+        working-directory: AdvancedWeighbridge
+        run: |
+          dotnet build src/Weighbridge.Cloud -c Release
+          mkdir -p "$RUNNER_TEMP/cloud-data"
+          cd src/Weighbridge.Cloud
+          Cloud__DataDirectory="$RUNNER_TEMP/cloud-data" Cloud__BootstrapAdminUsername=admin Cloud__BootstrapAdminPassword="$E2E_ADMIN_PASSWORD" \
+            ASPNETCORE_URLS=http://0.0.0.0:5080 nohup dotnet bin/Release/net10.0/Weighbridge.Cloud.dll > "$RUNNER_TEMP/cloud.log" 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:5080/api/v1/health && break; sleep 1; done
+
+      - name: Run the app on an Android 15 emulator and drive it like a user
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: python3 AdvancedWeighbridge/android/e2e/mobile_e2e.py --apk "dl/android/AdvancedWeighbridge-Mobile-${AWMS_VERSION}-debug.apk" --server http://127.0.0.1:5080 --device-server http://10.0.2.2:5080 --admin-password "$E2E_ADMIN_PASSWORD" --out out/mobile-e2e
+
+      - name: Cloud server log
+        if: always()
+        run: tail -100 "$RUNNER_TEMP/cloud.log" || true
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mobile-e2e
+          path: out/mobile-e2e
+          if-no-files-found: ignore
+
   package:
     name: Final package
-    needs: [linux, docker, windows, android]
+    needs: [linux, docker, windows, android, android-e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -335,6 +391,11 @@ jobs:
           name: android
           path: dl/android
 
+      - uses: actions/download-artifact@v7
+        with:
+          name: mobile-e2e
+          path: dl/mobile-e2e
+
       - name: Assemble
         run: |
           set -euo pipefail
@@ -346,6 +407,7 @@ jobs:
           cp dl/android/*.apk $P/android/
           cp dl/android/lint-report.html $P/test-reports/android-lint-report.html
           cp -r dl/windows/screenshots $P/docs/screenshots
+          mkdir -p $P/docs/screenshots/mobile && cp dl/mobile-e2e/*.png $P/docs/screenshots/mobile/
           cp dl/windows/selftest.txt dl/windows/installed-selftest.txt $P/test-reports/
           cp -r AdvancedWeighbridge/deploy/cloud/. $P/cloud/
           cp -r AdvancedWeighbridge/docs/. $P/docs/

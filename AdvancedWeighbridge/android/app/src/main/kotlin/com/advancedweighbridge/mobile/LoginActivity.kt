@@ -3,6 +3,7 @@ package com.advancedweighbridge.mobile
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -72,12 +73,25 @@ class LoginActivity : BaseActivity() {
         openWeb.visibility = View.GONE
         form.add(text(getString(R.string.login_footer), TextKind.CAPTION, color = getColor(R.color.text_secondary)), topDp = 24)
 
-        password.imeOptions = EditorInfo.IME_ACTION_DONE
-        password.setOnEditorActionListener { _, action, _ -> (action == EditorInfo.IME_ACTION_DONE).also { if (it) submit() } }
+        for (last in listOf(password, code, repeatPassword)) {
+            last.imeOptions = EditorInfo.IME_ACTION_DONE
+            last.setOnEditorActionListener { _, action, event -> submitOnEnter(action, event) }
+        }
 
         setContentView(scroll)
         edgeToEdge(scroll, header)
         if (username.text.isNotEmpty()) password.requestFocus()
+    }
+
+    /** The keyboard's Done key or a hardware Enter key submits the form (once: the key-up is consumed too). */
+    private fun submitOnEnter(action: Int, event: KeyEvent?): Boolean {
+        if (action == EditorInfo.IME_ACTION_DONE) {
+            submit()
+            return true
+        }
+        if (event?.keyCode != KeyEvent.KEYCODE_ENTER) return false
+        if (event.action == KeyEvent.ACTION_DOWN) submit()
+        return true
     }
 
     private fun showError(message: String?) {
