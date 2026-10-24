@@ -175,10 +175,11 @@ public class AutomaticModeEndToEndTests
         await WaitAsync(() => { lock (results) return results.Count >= 1; }, 90, "first automatic capture");
         lock (results) Assert.True(results[0].Success, results[0].Message);
         await WaitAsync(() => automation.Status.ExitOpen, 30, "exit barrier opened");
-        Assert.True(world.ExitBarrierOpen);
+        // The engine reports the barrier as open when it issues the command; the (simulated) I/O output follows.
+        await WaitAsync(() => world.ExitBarrierOpen, 5, "exit barrier output switched on");
         world.DriveOff();
         await WaitAsync(() => automation.Status.State == AutomationState.Idle, 45, "vehicle left");
-        Assert.False(world.ExitBarrierOpen);
+        await WaitAsync(() => !world.ExitBarrierOpen, 5, "exit barrier output switched off");
 
         world.DriveOn(truck, loaded: false);
         await WaitAsync(() => { lock (results) return results.Count >= 2; }, 90, "second automatic capture");
