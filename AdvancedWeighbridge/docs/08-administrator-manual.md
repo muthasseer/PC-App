@@ -60,6 +60,9 @@ before trade use, and repeat the check after any change to the indicator or the 
 
 ## 8.5 Lights, barriers, sensors, cameras and identification (Devices → Lights & barriers)
 
+The hardware configuration is edited as JSON on this page (users with *manage settings*). Saving checks that the
+JSON is valid, asks for a reason for the audit trail, and takes effect after restarting the application. *Insert simulated lights, barriers, sensors and ANPR* fills in a complete example for training.
+
 * **I/O controllers**: Modbus TCP, Modbus RTU (serial), HTTP relay boards, or simulated I/O for training.
 * **Outputs**: entry/exit red, amber, green; entry/exit barrier open/close (level or pulse drive, pulse length);
   alarm. **Inputs**: vehicle presence, entry/exit beam blocked, safety OK (barrier area clear / emergency stop).
@@ -67,7 +70,8 @@ before trade use, and repeat the check after any change to the indicator or the 
   each weighing and stored with their SHA-256.
 * **Identification**: ANPR (HTTP push or poll), RFID or QR readers on serial ports or as keyboard wedge.
 
-Interlocks are enforced in software for every barrier command, including test buttons: the **exit** opens only
+*Manual control* buttons open/close the barriers and set the lights; each asks for a reason and is audited.
+Interlocks are enforced in software for every barrier command, including manual control: the **exit** opens only
 when the weighing was captured and saved, a vehicle is on the platform, no fault is active and the safety input is
 OK; the **entry** opens only when the platform is empty, the indicator delivers valid readings, no fault is active
 and the safety input is OK. A manual override needs the *hardware override* permission and is audited. Software

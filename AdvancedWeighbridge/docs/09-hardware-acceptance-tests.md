@@ -52,7 +52,7 @@ Perform with the barrier manufacturer's safety devices active and a person ready
 
 | # | Test | Pass criteria |
 |---|---|---|
-| D1 | Output mapping | Each output test button switches exactly the intended light/barrier. |
+| D1 | Output mapping | Each *Manual control* button on the Lights & barriers page switches exactly the intended light/barrier. |
 | D2 | Input mapping | Presence, entry/exit beams and safety input change state on the Lights & barriers page when operated. |
 | D3 | Exit interlock | Try to open the exit with no saved weighing, with the platform empty, with an active fault, and with the safety input not OK. | Each attempt is refused with the reason; the barrier does not move. |
 | D4 | Entry interlock | Entry does not open while the platform is occupied or the indicator is faulty. |
