@@ -75,16 +75,18 @@ public sealed class BackupService(Database db, SettingsService settings, AuditSe
 
     public Task<IReadOnlyList<BackupHistoryEntity>> HistoryAsync(CancellationToken ct = default) => db.ReadAsync(s => BackupHistoryStore.RecentAsync(s, 50, ct), ct);
 
-    /// <summary>Called every minute by the scheduler; runs the daily backup once its time has passed.</summary>
+    /// <summary>
+    /// Called every minute by the scheduler. Due when no backup (of any kind) has completed since the most recent
+    /// scheduled time, so a backup missed because the PC was switched off is made as soon as it runs again.
+    /// </summary>
     public async Task<bool> RunScheduledIfDueAsync(CancellationToken ct = default)
     {
         if (db.Options.Provider != DatabaseProvider.Sqlite) return false;
         var cfg = await settings.GetAsync<BackupSettings>(SettingKeys.Backup, ct).ConfigureAwait(false);
         if (!cfg.ScheduleEnabled || !TimeOnly.TryParseExact(cfg.DailyAt, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)) return false;
         var localNow = TimeZoneInfo.ConvertTime(time.GetUtcNow(), TimeZoneInfo.Local);
-        if (TimeOnly.FromDateTime(localNow.DateTime) < at) return false;
-        // Due when no backup (of any kind) has completed since today's scheduled time.
         var scheduledLocal = localNow.Date + at.ToTimeSpan();
+        if (localNow.DateTime < scheduledLocal) scheduledLocal = scheduledLocal.AddDays(-1);
         var scheduledUtc = new DateTimeOffset(scheduledLocal, TimeZoneInfo.Local.GetUtcOffset(scheduledLocal));
         var last = await db.ReadAsync(s => BackupHistoryStore.LastSuccessfulAsync(s, ct), ct).ConfigureAwait(false);
         if (last?.CompletedUtc is { } done && done >= scheduledUtc) return false;

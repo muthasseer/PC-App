@@ -39,6 +39,7 @@ public sealed partial class WeighingViewModel : ObservableObject, IDisposable
     private DateTimeOffset _capturedAt = DateTimeOffset.MinValue;
     private bool _busy;
     private CancellationTokenSource? _contextLookup;
+    private CancellationTokenSource? _stableWait;
 
     public WeighingViewModel()
     {
@@ -301,6 +302,19 @@ public sealed partial class WeighingViewModel : ObservableObject, IDisposable
                 Details = Details(), Mode = Mode, Snapshot = snapshot, EvidenceFrames = frames, Images = images, UseStoredTare = UseStoredTare,
             };
             var result = await host.Weighing.CaptureAsync(User, request);
+            if (result.Failure == CaptureFailure.WaitForStability)
+            {
+                // Policy "wait for stable": capture the first stable reading within the timeout (Esc cancels).
+                var (stable, cancelled) = await WaitForStableAsync(weighing.Capture.WaitForStableTimeoutMs);
+                if (stable is null)
+                {
+                    ShowResult("Not captured", cancelled ? "Cancelled." : "The weight did not become stable in time. Check that the vehicle is standing still and press GET WEIGHT again.", true);
+                    return;
+                }
+                var stableFrames = stable.Latest is { } sr ? host.Indicator.Current?.EvidenceFor(sr.Sequence, 5) ?? [] : [];
+                request = request with { Snapshot = stable, EvidenceFrames = stableFrames };
+                result = await host.Weighing.CaptureAsync(User, request);
+            }
             if (result.Failure == CaptureFailure.DuplicateSuspected && Dialogs.Confirm(result.Message + "\n\nRecord it anyway?"))
             {
                 result = await host.Weighing.CaptureAsync(User, request with { ConfirmDuplicate = true });
@@ -418,8 +432,43 @@ public sealed partial class WeighingViewModel : ObservableObject, IDisposable
         if (LastTransactionId is { } id) await PrintAsync(id);
     }
 
+    /// <summary>Waits until the indicator reports a stable reading. Snapshot is null on timeout or when the operator cancels.</summary>
+    private async Task<(IndicatorSnapshot? Snapshot, bool Cancelled)> WaitForStableAsync(int timeoutMs)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(Math.Max(1000, timeoutMs)));
+        using var wait = new CancellationTokenSource();
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, wait.Token);
+        _stableWait = wait;
+        ShowResult(Loc.T("status.waitStable", "Waiting for stable weight"), "The weight is captured as soon as it is stable. Press Esc to cancel.", false);
+        try
+        {
+            while (true)
+            {
+                var snap = App.Host.Indicator.Snapshot;
+                if (snap.Stability.IsStable && snap.Latest is not null) return (snap, false);
+                await Task.Delay(100, linked.Token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return (null, wait.IsCancellationRequested);
+        }
+        finally
+        {
+            _stableWait = null;
+        }
+    }
+
     [RelayCommand]
-    private void Clear() => ClearDetails(keepResult: false);
+    private void Clear()
+    {
+        if (_stableWait is { } wait)
+        {
+            wait.Cancel(); // Esc while waiting for a stable weight cancels the capture, not the details
+            return;
+        }
+        ClearDetails(keepResult: false);
+    }
 
     private void ClearDetails(bool keepResult)
     {

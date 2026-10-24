@@ -293,6 +293,21 @@ public class WeighingFlowTests
     }
 
     [Fact]
+    public async Task Scheduled_backup_missed_while_the_pc_was_off_is_made_on_the_next_start()
+    {
+        await using var t = await TestHost.CreateAsync();
+        // 02:30, no backup since yesterday's 23:30 slot (the PC was off): due straight away, then not again.
+        Assert.True(await t.Host.Backups.RunScheduledIfDueAsync());
+        t.Advance(TimeSpan.FromHours(1));
+        Assert.False(await t.Host.Backups.RunScheduledIfDueAsync());
+        // Two days off: one catch-up backup, not one per missed day.
+        t.Advance(TimeSpan.FromDays(2));
+        Assert.True(await t.Host.Backups.RunScheduledIfDueAsync());
+        Assert.False(await t.Host.Backups.RunScheduledIfDueAsync());
+        Assert.Equal(2, (await t.Host.Backups.HistoryAsync()).Count(h => h is { Status: "Succeeded", Kind: "Scheduled" }));
+    }
+
+    [Fact]
     public async Task Health_reports_problems()
     {
         await using var t = await TestHost.CreateAsync();

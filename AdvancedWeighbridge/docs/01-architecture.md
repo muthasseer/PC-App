@@ -52,7 +52,8 @@ Advanced Weighbridge Management System (AWMS), version 1.0.
         │
  Weighbridge.Application              ← use cases: GET WEIGHT, first/second weighing, manual entry,
         │                                approvals, automation controller, history, reports, backup,
-        │                                sync worker, authentication, settings, health
+        │                                cloud sync worker (outbox, heartbeat, commands), authentication,
+        │                                settings, health
         ├── Weighbridge.Core           ← pure domain, no I/O: weights & units, framing, checksums,
         │                                parser engine, format learner, stability detector, capture
         │                                policy, net calculation, automation state machine,
@@ -62,10 +63,9 @@ Advanced Weighbridge Management System (AWMS), version 1.0.
         │                                IP cameras, RFID/QR/ANPR sources, plugin loader
         ├── Weighbridge.Data           ← schema migrations (SQLite + PostgreSQL), repositories,
         │                                hash-chained audit store, backup/restore
-        ├── Weighbridge.Reporting      ← ticket layout, PDF (Skia + HarfBuzz shaping, Noto fonts),
-        │                                print rasters, ESC/POS, QR codes, XLSX/CSV/PDF reports
-        └── Weighbridge.Sync           ← cloud client: outbox processing, heartbeats, commands
- Weighbridge.Contracts                ← DTOs shared by Sync client and Cloud server
+        └── Weighbridge.Reporting      ← ticket layout, PDF (Skia + HarfBuzz shaping, Noto fonts),
+                                         print rasters, ESC/POS, QR codes, XLSX/CSV/PDF reports
+ Weighbridge.Contracts                ← DTOs shared by the sync client and the cloud server
 ```
 
 Dependency rule: `Core` references nothing. Everything above it depends inwards. The WPF project is the only
@@ -140,7 +140,7 @@ authorisation and configured safety inputs.
 * Passwords: PBKDF2-HMAC-SHA256, 600 000 iterations, 16-byte salt, constant-time comparison.
 * Optional TOTP (RFC 6238) multi-factor authentication. Failed-login lock-out. Idle session timeout.
 * Secrets in settings (cloud API key, camera passwords) are encrypted with Windows DPAPI (machine scope).
-* Cloud: TLS only (plain HTTP refused except `localhost`), JWT access tokens + rotating refresh tokens,
+* Cloud: TLS only (the desktop and the app refuse plain HTTP except for `localhost`, the emulator host, or an explicit desktop test setting), JWT access tokens + rotating refresh tokens,
   site API keys stored as SHA-256 hashes, rate-limited login, per-branch authorisation.
 * No passwords, password hashes or database files are ever sent to the cloud.
 
@@ -155,5 +155,5 @@ authorisation and configured safety inputs.
 | PDF / tickets | SkiaSharp + HarfBuzz, bundled Noto fonts | Correct Sinhala/Tamil shaping, MIT licence, same output for print and PDF. |
 | Excel | ClosedXML | MIT, no Office needed. |
 | Cloud | ASP.NET Core minimal APIs | Same language/DTOs as desktop. |
-| Android | Kotlin, AndroidX, Material Components | Matches the Gradle/AGP toolchain already proven on this account's CI. |
+| Android | Kotlin, Android framework UI (no AndroidX), OkHttp, coroutines; minSdk 26, targetSdk 36 | Few dependencies, small APK; platform-independent core unit-tested on the JVM; CI runs the app on an emulator against a real server. |
 | Installer | Inno Setup 6 → `AdvancedWeighbridgeSetup.exe`, self-contained .NET | No runtime download required at install time; upgrade/repair/uninstall built in. |

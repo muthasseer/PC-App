@@ -50,5 +50,11 @@ After editing `app/strings/strings.py`, run `python3 app/strings/generate.py`.
 
 ## Status
 
-Built and linted by CI; the core logic is unit-tested. The app has not yet been tried on physical devices —
-see `docs/09-hardware-acceptance-tests.md` for the device checklist.
+CI builds and lints the app, runs the core unit tests, and runs `e2e/mobile_e2e.py` on an Android 15 emulator
+against a real cloud server: sign-in with a forced password change, LIVE dashboard, tickets, ticket details,
+in-app PDF, cancellation request (checked on the server), manual-entry labelling, reports, alerts, account, and
+NOT LIVE after the site stops sending heartbeats. The screenshots are part of the release package. The app has not
+yet been tried on physical phones — see test F4 in `docs/09-hardware-acceptance-tests.md`.
+
+Run the end-to-end test locally (emulator running, cloud server on port 5080):
+`python3 e2e/mobile_e2e.py --apk app/build/outputs/apk/debug/app-debug.apk --server http://localhost:5080 --device-server http://10.0.2.2:5080 --admin-password '<bootstrap password>'`
